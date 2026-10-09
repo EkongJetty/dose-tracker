@@ -1,0 +1,1782 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dose Tracker: patient radiation dose tracking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..650&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EDF1F6; --surface:#FFFFFF; --surface-2:#F5F7FB; --ink:#0F1B2D; --ink-2:#47576D; --ink-3:#74839A;
+  --line:#DCE3EC; --accent:#1F4FFF; --accent-soft:#E6ECFF; --accent-ink:#FFFFFF;
+  --low:#0E9F90; --mid:#D99200; --high:#DC3F46;
+  --low-soft:#DCF3EF; --mid-soft:#FBEFCF; --high-soft:#FBE2E3;
+  --shadow:0 1px 2px rgba(15,27,45,.05),0 14px 30px -18px rgba(15,27,45,.22);
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"Instrument Sans","Segoe UI",system-ui,-apple-system,sans-serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A111C; --surface:#111B2B; --surface-2:#16233A; --ink:#E8EEF7; --ink-2:#A6B4C8; --ink-3:#7686A0;
+    --line:#22314A; --accent:#7C98FF; --accent-soft:#1B2A55; --accent-ink:#0A111C;
+    --low:#2CC5B4; --mid:#F2B83B; --high:#FF6B70;
+    --low-soft:#0F3A38; --mid-soft:#41330F; --high-soft:#4A1E22;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 30px -18px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A111C; --surface:#111B2B; --surface-2:#16233A; --ink:#E8EEF7; --ink-2:#A6B4C8; --ink-3:#7686A0;
+  --line:#22314A; --accent:#7C98FF; --accent-soft:#1B2A55; --accent-ink:#0A111C;
+  --low:#2CC5B4; --mid:#F2B83B; --high:#FF6B70;
+  --low-soft:#0F3A38; --mid-soft:#41330F; --high-soft:#4A1E22;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 14px 30px -18px rgba(0,0,0,.6);
+}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+h1,h2,h3,p{margin:0}
+.app{display:grid;grid-template-columns:236px minmax(0,1fr);min-height:100vh}
+
+/* sidebar */
+.side{position:sticky;top:env(safe-area-inset-top,0px);height:100vh;padding:22px 16px;display:flex;flex-direction:column;gap:26px;border-right:1px solid var(--line);background:var(--surface)}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px;font-family:var(--display);font-weight:700;font-size:21px;letter-spacing:-.02em}
+.brand svg{color:var(--accent)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;color:var(--ink-2);text-decoration:none;font-weight:500}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav svg{width:19px;height:19px;flex:none;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.badge{margin-left:auto;background:var(--high);color:#fff;border-radius:999px;font-size:12px;font-weight:600;padding:1px 8px;min-width:22px;text-align:center}
+.site{margin-top:auto;padding:14px;border-radius:14px;background:var(--surface-2);font-size:13px;color:var(--ink-2)}
+.site strong{display:block;color:var(--ink);font-size:14px;margin-bottom:2px}
+.live{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--low);margin-right:6px;box-shadow:0 0 0 3px var(--low-soft)}
+
+/* main */
+main{padding:26px 34px 56px;max-width:1480px;width:100%}
+.top{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap;margin-bottom:22px}
+.top h1{font-family:var(--display);font-size:clamp(28px,3.2vw,40px);font-weight:700;letter-spacing:-.03em;line-height:1.05}
+.top p{color:var(--ink-2);margin-top:6px}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px;height:42px;min-width:230px}
+.search input{border:0;background:none;outline:0;width:100%;height:100%}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.sel,.iconbtn{height:42px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px}
+.iconbtn{width:42px;padding:0;display:grid;place-items:center}
+.iconbtn:hover,.sel:hover{border-color:var(--ink-3)}
+
+/* kpi band */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-radius:20px;box-shadow:var(--shadow);margin-bottom:20px}
+.kpi{padding:18px 22px;display:flex;flex-direction:column;gap:2px;position:relative;min-width:0}
+.kpi+.kpi{border-left:1px solid var(--line)}
+.kpi .l{color:var(--ink-2);font-size:13.5px}
+.kpi .v{font-family:var(--display);font-size:34px;font-weight:650;letter-spacing:-.03em;line-height:1.15}
+.kpi .v small{font-size:15px;font-weight:500;color:var(--ink-3);letter-spacing:0;margin-left:4px}
+.kpi .d{font-size:13px;color:var(--ink-2)}
+.kpi .d b{font-weight:600}
+.kpi .d .good{color:var(--low)} .kpi .d .bad{color:var(--high)}
+.kpi svg.spark{position:absolute;right:18px;top:20px}
+
+/* layout */
+.split{display:grid;grid-template-columns:minmax(300px,390px) minmax(0,1fr);gap:20px;align-items:start;margin-bottom:20px}
+.lower{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
+.panel{background:var(--surface);border-radius:20px;box-shadow:var(--shadow);padding:20px 22px;min-width:0}
+.ph{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.ph h2{font-family:var(--display);font-size:20px;font-weight:650;letter-spacing:-.02em}
+.ph p{color:var(--ink-2);font-size:13.5px;margin-top:2px}
+
+/* chips */
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 12px;font-size:13px;color:var(--ink-2)}
+.chip:hover{border-color:var(--ink-3)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+
+/* worklist */
+.list{display:flex;flex-direction:column;gap:6px;margin:0 -8px}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;text-align:left;border:1px solid transparent;background:none;border-radius:14px;padding:10px 8px;width:100%}
+.row:hover{background:var(--surface-2)}
+.row[aria-pressed="true"]{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 35%,transparent)}
+.av{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:650;font-size:14px;font-family:var(--display)}
+.sev-high{background:var(--high-soft);color:var(--high)} .sev-medium{background:var(--mid-soft);color:var(--mid)} .sev-info{background:var(--low-soft);color:var(--low)}
+.who{display:flex;flex-direction:column;min-width:0}
+.who strong{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who small{color:var(--ink-3);font-size:12.5px}
+.who em{font-style:normal;color:var(--ink-2);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.dose{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.dose b{font-family:var(--display);font-size:18px;font-weight:650;line-height:1}
+.dose small{font-size:11.5px;color:var(--ink-3)}
+.bar{display:block;width:64px;height:5px;border-radius:9px;background:var(--line);overflow:hidden}
+.bar u{display:block;height:100%;border-radius:9px;text-decoration:none}
+.empty{padding:22px 8px;color:var(--ink-2);font-size:14px}
+
+/* patient detail */
+.pid{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start;margin-bottom:18px}
+.pid h2{font-family:var(--display);font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.pid p{color:var(--ink-2);margin-top:4px;font-size:14px}
+.tag{display:inline-block;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px 11px;font-size:13px;color:var(--ink-2)}
+.stats{display:grid;grid-template-columns:1fr 1.5fr 0.8fr;gap:0;border:1px solid var(--line);border-radius:16px;margin-bottom:18px}
+.stat{padding:14px 18px;min-width:0}
+.stat+.stat{border-left:1px solid var(--line)}
+.stat .l{font-size:13px;color:var(--ink-2)}
+.stat .v{font-family:var(--display);font-size:30px;font-weight:650;letter-spacing:-.03em;line-height:1.2}
+.stat .v small{font-size:14px;font-weight:500;color:var(--ink-3);margin-left:3px;letter-spacing:0}
+.meter{height:8px;border-radius:9px;background:var(--line);position:relative;margin:8px 0 5px}
+.meter span{display:block;height:100%;border-radius:9px;background:var(--accent)}
+.meter i{position:absolute;right:0;top:-4px;width:2px;height:16px;background:var(--ink);border-radius:2px}
+.stat .n{font-size:12.5px;color:var(--ink-2)}
+.chartwrap{position:relative}
+.chartwrap svg{width:100%;height:auto;display:block;overflow:visible}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-2);margin:6px 0 4px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+.dot.low{background:var(--low)} .dot.mid{background:var(--mid)} .dot.high{background:var(--high)}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--surface);border-radius:12px;padding:10px 12px;font-size:12.5px;line-height:1.45;width:max-content;max-width:230px;z-index:3;box-shadow:0 10px 26px -10px rgba(0,0,0,.5)}
+.tip strong{display:block;font-size:13.5px;margin-bottom:2px}
+.ax text{fill:var(--ink-3);font-size:11.5px;font-family:var(--body)}
+.mk{cursor:pointer;stroke:var(--surface);stroke-width:2.5}
+.mk:hover,.mk.on{stroke:var(--ink);stroke-width:2.5}
+.line-draw{stroke-dasharray:1;stroke-dashoffset:0}
+@media (prefers-reduced-motion:no-preference){
+  .line-draw{animation:draw .9s cubic-bezier(.3,.7,.2,1)}
+  .area-in{animation:fade .9s ease}
+  @keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+}
+
+/* findings */
+.sub{font-family:var(--display);font-size:16px;font-weight:650;margin:22px 0 10px;letter-spacing:-.01em;display:flex;align-items:center;gap:8px}
+.find{border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr;gap:12px;margin-bottom:10px}
+.find .pill{align-self:start}
+.find h4{margin:0;font-size:15px;font-weight:600}
+.find p{color:var(--ink-2);font-size:14px;margin-top:3px}
+.find .meta{font-size:12.5px;color:var(--ink-3);margin-top:6px}
+.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:6px 12px;font-size:13.5px;font-weight:550}
+.btn:hover{border-color:var(--ink-3)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.primary:hover{filter:brightness(1.08)}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.pill.low{background:var(--low-soft);color:var(--low)} .pill.mid{background:var(--mid-soft);color:var(--mid)} .pill.high{background:var(--high-soft);color:var(--high)}
+.pill.sev-high{background:var(--high-soft);color:var(--high)} .pill.sev-medium{background:var(--mid-soft);color:var(--mid)} .pill.sev-info{background:var(--low-soft);color:var(--low)}
+
+/* table */
+.tablewrap{overflow-x:auto;max-height:290px;overflow-y:auto;border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-weight:550;color:var(--ink-2);font-size:13px;padding:9px 14px;white-space:nowrap}
+td{padding:10px 14px;border-top:1px solid var(--line);white-space:nowrap}
+tbody tr:hover{background:var(--surface-2)}
+td.num,th.num{text-align:right}
+
+/* predictor */
+.pred{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:22px}
+.ctrls{display:flex;flex-direction:column;gap:16px}
+.ctrls label,.ctrls legend{font-size:13.5px;color:var(--ink-2);display:block;margin-bottom:6px;padding:0}
+.ctrls fieldset{border:0;padding:0;margin:0}
+.ctrls select{width:100%;height:42px;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:0 10px}
+.rng{display:flex;align-items:center;gap:12px}
+.rng input{flex:1;accent-color:var(--accent)}
+.rng output{font-family:var(--display);font-weight:650;min-width:52px;text-align:right}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface-2);border-radius:12px;padding:4px;gap:4px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{margin:0;text-align:center;padding:7px 4px;border-radius:9px;cursor:pointer;font-size:13px;color:var(--ink-2);line-height:1.25}
+.seg input:checked+label{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(15,27,45,.14)}
+.seg input:focus-visible+label{outline:2px solid var(--accent)}
+.result{background:var(--surface-2);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.big{font-family:var(--display);font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1}
+.big small{font-size:16px;font-weight:500;color:var(--ink-3);letter-spacing:0;margin-left:6px}
+.mini{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mini div{font-size:12.5px;color:var(--ink-2)}
+.mini b{display:block;font-family:var(--display);font-size:18px;color:var(--ink);font-weight:650}
+.gauge{position:relative;height:12px;border-radius:9px;margin-top:6px;background:linear-gradient(90deg,var(--low) 0 71.8%,var(--mid) 71.8% 81.2%,var(--high) 81.2% 100%);opacity:.85}
+.gauge i{position:absolute;top:-6px;width:4px;height:24px;border-radius:3px;background:var(--ink);transform:translateX(-50%);transition:left .25s ease}
+.gl{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);margin-top:4px}
+.impact{font-size:14px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:12px}
+.impact b{color:var(--ink)}
+
+/* scatter */
+.scwrap svg{width:100%;height:auto;display:block}
+.note{font-size:14px;color:var(--ink-2);margin-top:10px}
+.note b{color:var(--ink)}
+.foot{margin-top:22px;font-size:13px;color:var(--ink-3)}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:12px;font-size:14px;opacity:0;pointer-events:none;transition:.25s;z-index:20}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:1180px){
+  .split,.lower,.pred{grid-template-columns:minmax(0,1fr)}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpi:nth-child(3){border-left:0}
+  .kpi:nth-child(n+3){border-top:1px solid var(--line)}
+}
+@media (max-width:900px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;gap:12px;padding:12px 14px;border-right:0;border-bottom:1px solid var(--line);overflow-x:auto}
+  .nav{flex-direction:row;gap:4px}
+  .nav a{white-space:nowrap;padding:8px 12px}
+  .site{display:none}
+  main{padding:20px 16px 48px}
+}
+@media (max-width:620px){
+  .kpis{grid-template-columns:1fr}
+  .kpi+.kpi{border-left:0;border-top:1px solid var(--line)}
+  .stats{grid-template-columns:1fr}
+  .stat+.stat{border-left:0;border-top:1px solid var(--line)}
+  .search{min-width:0;flex:1}
+  .panel{padding:16px}
+}
+
+/* ---- brand, auth, roles ---- */
+[hidden]{display:none!important}
+:root{--logo:#FFC81E;--logo-ink:#14181F}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--logo:#FFD43B}}
+:root[data-theme="dark"]{--logo:#FFD43B}
+.mark{width:36px;height:36px;border-radius:11px;background:var(--logo);color:var(--logo-ink);display:grid;place-items:center;flex:none}
+.mark svg{color:var(--logo-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn:disabled:hover{border-color:var(--line)}
+.uchip{display:flex;align-items:center;gap:10px;height:42px;padding:0 14px 0 5px;background:var(--surface);border:1px solid var(--line);border-radius:12px}
+.uchip .av-s{width:32px;height:32px;border-radius:9px;background:var(--logo);color:var(--logo-ink);display:grid;place-items:center;font-weight:700;font-size:13px;font-family:var(--display)}
+.uchip .uw{display:flex;flex-direction:column;line-height:1.15}
+.uchip strong{font-size:13.5px;font-weight:600}
+.uchip small{font-size:12px;color:var(--ink-2)}
+.auth{min-height:100vh;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);background:var(--bg)}
+.auth-brand{background:var(--logo);color:var(--logo-ink);padding:44px 52px;display:flex;flex-direction:column;justify-content:space-between;gap:40px;position:relative;overflow:hidden}
+.auth-brand .brand{color:var(--logo-ink);padding:0}
+.auth-brand .mark{background:var(--logo-ink)}
+.auth-brand .mark svg{color:var(--logo)}
+.auth-brand h2{font-family:var(--display);font-size:clamp(34px,4.4vw,60px);line-height:1.02;letter-spacing:-.04em;font-weight:700;max-width:13ch;margin-bottom:18px}
+.auth-brand p{max-width:40ch;font-size:16.5px;line-height:1.55}
+.auth-brand .ghost{position:absolute;right:-130px;bottom:-130px;width:480px;height:480px;opacity:.12;color:var(--logo-ink)}
+.auth-form{display:flex;align-items:center;justify-content:center;padding:32px 24px}
+.auth-form .card{width:min(460px,100%)}
+.atitle{font-family:var(--display);font-size:28px;font-weight:700;letter-spacing:-.03em;line-height:1.1}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--surface-2);border-radius:12px;padding:4px;gap:4px;margin:20px 0 22px}
+.tabs button{border:0;background:none;border-radius:9px;padding:9px;font-weight:550;color:var(--ink-2)}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(15,27,45,.14)}
+.field{margin-bottom:14px;min-width:0}
+.field label{display:block;font-size:13.5px;color:var(--ink-2);margin-bottom:6px}
+.field input,.field select{width:100%;height:44px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px}
+.field input:focus,.field select:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pwrap{position:relative}
+.pwrap input{padding-right:58px}
+.showpw{position:absolute;right:6px;top:6px;height:32px;border:0;background:none;color:var(--accent);font-weight:600;font-size:13px;padding:0 8px;border-radius:8px}
+.hint{font-size:12.5px;color:var(--ink-3);margin-top:6px}
+.rules{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-3);margin:-4px 0 10px}
+.rules span::before{content:"\25CB  "}
+.rules span.ok{color:var(--low)}
+.rules span.ok::before{content:"\25CF  "}
+.err{color:var(--high);font-size:13.5px;min-height:20px;margin:2px 0 10px}
+.btn.wide{width:100%;height:46px;font-size:15px}
+.fine{font-size:12.5px;color:var(--ink-3);margin-top:18px}
+dialog{border:0;border-radius:20px;padding:0;background:var(--surface);color:var(--ink);width:min(780px,calc(100% - 32px));box-shadow:0 30px 80px -20px rgba(0,0,0,.5)}
+dialog::backdrop{background:rgba(10,17,28,.55)}
+.dlg{padding:22px 24px}
+.rolesel{height:36px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:0 8px}
+.rolelist{list-style:none;margin:0;padding:0;display:grid;gap:8px;font-size:14px;color:var(--ink-2)}
+.rolelist b{color:var(--ink)}
+@media (max-width:900px){
+  .auth{grid-template-columns:minmax(0,1fr)}
+  .auth-brand{padding:22px 24px;gap:16px}
+  .auth-brand h2{font-size:30px;max-width:none;margin-bottom:8px}
+  .auth-brand .ghost{display:none}
+}
+@media (max-width:620px){
+  .uchip .uw{display:none}
+  .uchip{padding:0 5px}
+  .two{grid-template-columns:minmax(0,1fr)}
+}
+
+/* ---- pages, forms, questionnaires ---- */
+.page{display:block}
+.pagebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.pagebar .grow{flex:1}
+.panel+.panel{margin-top:20px}
+.tablewrap.tall{max-height:none}
+.tablewrap.rows tbody tr{cursor:pointer}
+td.wrap,th.wrap{white-space:normal;min-width:180px}
+td small{display:block;color:var(--ink-3);font-size:12px}
+.pill.plain{background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn.danger{color:var(--high);border-color:color-mix(in srgb,var(--high) 40%,var(--line))}
+.btn.danger.armed{background:var(--high);color:#fff;border-color:var(--high)}
+.link{border:0;background:none;color:var(--accent);font-weight:600;padding:0;text-decoration:underline;text-underline-offset:3px}
+.seats{font-size:13px;color:var(--ink-2);margin-top:14px;display:flex;align-items:center;gap:10px}
+.seats .sbar{flex:1;height:6px;border-radius:9px;background:var(--line);overflow:hidden;max-width:160px}
+.seats .sbar u{display:block;height:100%;background:var(--accent);text-decoration:none;border-radius:9px}
+.seats.full{color:var(--high)}
+.seats.full .sbar u{background:var(--high)}
+dialog{max-height:calc(100vh - 32px);overflow:auto}
+dialog.narrow{width:min(620px,calc(100% - 32px))}
+.dlg .actions{display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap;margin-top:18px}
+.dlg .actions .grow{margin-right:auto}
+.dlg .sub:first-of-type{margin-top:6px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.fgrid .full{grid-column:1/-1}
+.field textarea{width:100%;min-height:70px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;resize:vertical}
+.field textarea:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.field .q{display:block;font-size:14px;color:var(--ink);font-weight:550;margin-bottom:8px}
+.field .q small{display:block;font-weight:400;color:var(--ink-3);font-size:12.5px;margin-top:2px}
+.pick{display:flex;flex-wrap:wrap;gap:8px}
+.pick input{position:absolute;opacity:0;pointer-events:none}
+.pick label{margin:0;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:7px 14px;font-size:14px;cursor:pointer;line-height:1.25}
+.pick label:hover{border-color:var(--ink-3)}
+.pick input:checked+label{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb,var(--accent) 50%,transparent);font-weight:600}
+.pick input:focus-visible+label{outline:2px solid var(--accent);outline-offset:2px}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--ink-2);margin:8px 0}
+.check input{width:18px;height:18px;margin-top:2px;accent-color:var(--accent);flex:none}
+.check label{margin:0;color:inherit;font-size:14px}
+.steps{display:flex;gap:6px;margin:4px 0 18px}
+.steps i{flex:1;height:5px;border-radius:9px;background:var(--line)}
+.steps i.on{background:var(--accent)}
+.stepname{font-size:13px;color:var(--ink-2);margin-bottom:4px}
+.inline-warn{background:var(--mid-soft);color:var(--ink);border-radius:12px;padding:10px 12px;font-size:13.5px;margin:4px 0 12px}
+.inline-warn.bad{background:var(--high-soft)}
+.inline-info{background:var(--surface-2);border-radius:12px;padding:10px 12px;font-size:13.5px;color:var(--ink-2);margin:4px 0 12px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px 18px;margin:6px 0 4px}
+.kv div{min-width:0}
+.kv span{display:block;font-size:12.5px;color:var(--ink-3)}
+.kv b{display:block;font-weight:600;font-size:14.5px;overflow-wrap:anywhere}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.mini-note{font-size:13px;color:var(--ink-2)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.cards .c{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.cards .c span{display:block;font-size:13px;color:var(--ink-2)}
+.cards .c b{font-family:var(--display);font-size:26px;font-weight:650;letter-spacing:-.02em}
+.drlin{width:96px;height:34px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:0 8px;text-align:right}
+.drlin:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.flaghead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
+.flaghead .link{font-size:13.5px}
+.printhead{display:none}
+.sample-tag{font-size:11.5px;font-weight:600;color:var(--ink-3);border:1px solid var(--line);border-radius:999px;padding:1px 8px;margin-left:6px;white-space:nowrap}
+.rp-controls{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px}
+.rp-controls .field{margin:0;min-width:200px}
+@media (max-width:620px){.fgrid{grid-template-columns:minmax(0,1fr)}}
+@media print{
+  body{background:#fff}
+  .side,.top,.foot,#toast,.noprint,.page:not(#pg-reports){display:none!important}
+  .app{display:block}
+  main{padding:0}
+  .panel{box-shadow:none;padding:0}
+  .printhead{display:block;margin-bottom:14px}
+  .tablewrap{max-height:none;overflow:visible;border:0}
+  table{min-width:0}
+  @page{size:A4 landscape;margin:12mm}
+  thead{display:table-header-group}
+  tr{break-inside:avoid}
+  .cards .c,.tablewrap th{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+</style>
+</head>
+<body>
+<div class="app" id="app" hidden>
+  <aside class="side">
+    <div class="brand">
+      <span class="mark"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.4" fill="currentColor"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="4.2" stroke-dasharray="7.85 7.85" transform="rotate(-30 12 12)"/></svg></span>
+      Dose Tracker
+    </div>
+    <nav class="nav" id="nav" aria-label="Main"></nav>
+    <div class="site"><strong id="siteName">Your facility</strong><span class="live"></span><span id="siteStats"></span></div>
+  </aside>
+
+  <main>
+    <header class="top">
+      <div>
+        <h1 id="pgTitle">Dose overview</h1>
+        <p id="pgSub"></p>
+      </div>
+      <div class="tools">
+        <label class="search" id="searchBox"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg><input id="q" type="search" placeholder="Search name or patient ID" aria-label="Search patients"></label>
+        <select class="sel" id="period" aria-label="Period"><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="0">All time</option></select>
+        <button class="iconbtn" id="theme" aria-label="Switch colour theme" title="Switch colour theme">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>
+        </button>
+        <div class="uchip" title="Signed in"><span class="av-s" id="uAv">--</span><span class="uw"><strong id="uName"></strong><small id="uRole"></small></span></div>
+        <button class="iconbtn" id="signout" aria-label="Sign out" title="Sign out">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4.5H6.5a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2H9M15 8l4 4-4 4M19 12H9.5"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Overview -->
+    <div class="page" id="pg-overview">
+      <section class="kpis" id="kpis" aria-label="Key figures"></section>
+      <div class="split">
+        <section class="panel" aria-labelledby="wl">
+          <div class="ph">
+            <div><h2 id="wl">Patients to review</h2><p>Ranked by what the AI flagged.</p></div>
+            <div class="chips" id="filters">
+              <button class="chip" data-f="all" aria-pressed="true">All</button>
+              <button class="chip" data-f="high" aria-pressed="false">High</button>
+              <button class="chip" data-f="medium" aria-pressed="false">Medium</button>
+            </div>
+          </div>
+          <div class="list" id="list"></div>
+        </section>
+        <section class="panel" id="detail" aria-live="polite"></section>
+      </div>
+      <div class="lower">
+        <section class="panel" aria-labelledby="pr">
+          <div class="ph"><div><h2 id="pr">Dose predictor</h2><p>Estimate dose before the scan from patient size and protocol.</p></div></div>
+          <div class="pred">
+            <div class="ctrls">
+              <div><label for="pExam">Exam</label>
+                <select id="pExam">
+                  <option value="CT_CHEST">CT chest</option>
+                  <option value="CT_AP">CT abdomen and pelvis</option>
+                  <option value="CT_CAP">CT chest, abdomen and pelvis</option>
+                </select></div>
+              <div><label for="pSize">Patient size (water-equivalent diameter)</label>
+                <div class="rng"><input id="pSize" type="range" min="16" max="42" value="30"><output id="pSizeOut" for="pSize">30 cm</output></div>
+                <p class="hint" id="pSizeHint"></p></div>
+              <fieldset><legend>Protocol</legend>
+                <div class="seg">
+                  <input type="radio" name="proto" id="p1" value="1" checked><label for="p1">Standard</label>
+                  <input type="radio" name="proto" id="p2" value="0.62"><label for="p2">AI-optimised</label>
+                  <input type="radio" name="proto" id="p3" value="1.25"><label for="p3">High quality</label>
+                </div>
+              </fieldset>
+            </div>
+            <div class="result" id="result"></div>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="ou">
+          <div class="ph">
+            <div><h2 id="ou">Protocol outliers</h2><p>Ringed dots are exams logged here. Faint dots are sample department data.</p></div>
+            <div class="chips" id="scChips">
+              <button class="chip" data-p="chest" aria-pressed="true">CT chest</button>
+              <button class="chip" data-p="ap" aria-pressed="false">CT abdomen, pelvis</button>
+              <button class="chip" data-p="head" aria-pressed="false">CT head</button>
+            </div>
+          </div>
+          <div class="scwrap" id="scatter"></div>
+          <p class="note" id="scNote"></p>
+          <div class="acts"><button class="btn primary" id="sendPhys">Send outliers to physics team</button><button class="btn" id="expCsv">Export list</button></div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Patients -->
+    <div class="page" id="pg-patients" hidden>
+      <section class="panel">
+        <div class="ph">
+          <div><h2>Patient records</h2><p id="patCount"></p></div>
+          <button class="btn primary" id="addPatientBtn" data-open="addPatient">Add patient</button>
+        </div>
+        <div class="pagebar"><div class="chips" id="patFilters">
+          <button class="chip" data-f="all" aria-pressed="true">All</button>
+          <button class="chip" data-f="flagged" aria-pressed="false">With open flags</button>
+          <button class="chip" data-f="paeds" aria-pressed="false">Under 16</button>
+          <button class="chip" data-f="women" aria-pressed="false">Women 12 to 55</button>
+        </div></div>
+        <div class="tablewrap tall rows"><table id="patTable"><thead><tr><th>Patient</th><th>Age, sex</th><th>Department</th><th>Size</th><th>Pregnancy</th><th class="num">12 months</th><th class="num">5 years</th><th class="num">Flags</th></tr></thead><tbody id="patBody"></tbody></table></div>
+      </section>
+    </div>
+
+    <!-- Exams -->
+    <div class="page" id="pg-exams" hidden>
+      <section class="panel">
+        <div class="ph">
+          <div><h2>Exam log</h2><p id="exCount"></p></div>
+          <button class="btn primary" id="logExamBtn" data-open="logExam">Log exam</button>
+        </div>
+        <div class="pagebar">
+          <div class="chips" id="exFilters">
+            <button class="chip" data-f="all" aria-pressed="true">All</button>
+            <button class="chip" data-f="over" aria-pressed="false">Above DRL</button>
+            <button class="chip" data-f="out" aria-pressed="false">More than 30% over</button>
+          </div>
+          <select class="sel" id="exMod" aria-label="Modality"><option value="">All modalities</option></select>
+        </div>
+        <div class="tablewrap tall rows"><table id="exTable"><thead><tr><th>Date</th><th>Patient</th><th>Exam</th><th class="num">Dose index</th><th class="num">Effective dose</th><th>Against DRL</th><th>Logged by</th></tr></thead><tbody id="exBody"></tbody></table></div>
+      </section>
+    </div>
+
+    <!-- Protocols -->
+    <div class="page" id="pg-protocols" hidden>
+      <section class="panel">
+        <div class="ph"><div><h2>Diagnostic reference levels</h2><p id="drlNote"></p></div></div>
+        <div class="tablewrap tall"><table id="drlTable"><thead><tr><th>Protocol</th><th>Modality</th><th class="num">Reference level (DRL)</th><th class="num">mSv per unit</th><th class="num">Exams</th><th class="num">Median vs DRL</th><th class="num">Above DRL</th><th class="num">Over +30%</th><th></th></tr></thead><tbody id="drlBody"></tbody></table></div>
+        <p class="note" id="drlHint"></p>
+      </section>
+    </div>
+
+    <!-- AI flags -->
+    <div class="page" id="pg-ai-flags" hidden>
+      <section class="panel">
+        <div class="ph">
+          <div><h2>Flags from the dose rules</h2><p id="flagCount"></p></div>
+          <div class="chips" id="flagFilters">
+            <button class="chip" data-f="all" aria-pressed="true">All</button>
+            <button class="chip" data-f="high" aria-pressed="false">High</button>
+            <button class="chip" data-f="medium" aria-pressed="false">Review</button>
+            <button class="chip" data-f="info" aria-pressed="false">Note</button>
+            <button class="chip" data-f="dismissed" aria-pressed="false">Dismissed</button>
+          </div>
+        </div>
+        <div id="flagList"></div>
+      </section>
+    </div>
+
+    <!-- Reports -->
+    <div class="page" id="pg-reports" hidden>
+      <section class="panel">
+        <div class="ph noprint"><div><h2>Report builder</h2><p>Pick a report. The period is set at the top of the page.</p></div></div>
+        <div class="rp-controls noprint">
+          <div class="field"><label for="rpType">Report</label>
+            <select id="rpType">
+              <option value="summary">Department summary</option>
+              <option value="cumulative">Cumulative dose by patient</option>
+              <option value="over">Exams more than 30% over DRL</option>
+              <option value="flags">Open flags</option>
+              <option value="referrals">Physics referrals log</option>
+            </select></div>
+          <button class="btn primary" id="rpXlsx">Download Excel</button>
+          <button class="btn" id="rpCsv">Export CSV</button>
+          <button class="btn" id="rpPrint">Print report</button>
+        </div>
+        <div class="printhead" id="rpHead"></div>
+        <div id="rpOut"></div>
+      </section>
+    </div>
+
+    <!-- Settings -->
+    <div class="page" id="pg-settings" hidden>
+      <section class="panel">
+        <div class="ph"><div><h2>Your questionnaire</h2><p>These answers set your facility name, review level and defaults.</p></div><button class="btn primary" id="editOnb">Edit answers</button></div>
+        <div id="onbSummary"></div>
+      </section>
+      <section class="panel">
+        <div class="ph"><div><h2>Account</h2><p id="acctLine"></p></div></div>
+        <form id="pwForm" novalidate style="max-width:420px">
+          <div class="field"><label for="cpOld">Current password</label><input id="cpOld" type="password" autocomplete="current-password"></div>
+          <div class="field"><label for="cpNew">New password</label><input id="cpNew" type="password" autocomplete="new-password"><p class="hint">8 or more characters, with a letter and a number.</p></div>
+          <div class="field"><label for="cpNew2">Confirm new password</label><input id="cpNew2" type="password" autocomplete="new-password"></div>
+          <p class="err" id="err-pw" role="alert"></p>
+          <button class="btn primary" type="submit" id="goPw">Change password</button>
+        </form>
+      </section>
+      <section class="panel">
+        <div class="ph"><div><h2>Data on this device</h2><p id="dataLine"></p></div></div>
+        <div class="acts" style="margin-top:0">
+          <button class="btn" id="bkExport">Back up everything (JSON)</button>
+          <label class="btn" style="cursor:pointer" id="bkImportLbl">Restore from backup<input id="bkFile" type="file" accept=".json,application/json" hidden></label>
+          <button class="btn danger" id="rmSample">Remove sample patients</button>
+        </div>
+        <p class="note" id="bkNote"></p>
+      </section>
+    </div>
+
+    <p class="foot noprint">Patient records are stored in the server database. Dose estimates and AI flags use illustrative rules, not clinical guidance. Sample patients are fictional.</p>
+  </main>
+</div>
+<div class="auth" id="auth" hidden>
+  <section class="auth-brand">
+    <div class="brand"><span class="mark"><svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.4" fill="currentColor"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="4.2" stroke-dasharray="7.85 7.85" transform="rotate(-30 12 12)"/></svg></span>Dose Tracker</div>
+    <div>
+      <h2>Every patient's dose, in one record.</h2>
+      <p>Sign in with the role that matches your work in the imaging department. What you can do in the system follows from that role.</p>
+    </div>
+    <svg class="ghost" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.4" fill="currentColor"/><circle cx="12" cy="12" r="7.5" fill="none" stroke="currentColor" stroke-width="4.2" stroke-dasharray="7.85 7.85" transform="rotate(-30 12 12)"/></svg>
+  </section>
+  <section class="auth-form">
+    <div class="card">
+      <h1 class="atitle">Welcome to Dose Tracker</h1>
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tab-in" aria-selected="true">Sign in</button>
+        <button type="button" role="tab" id="tab-up" aria-selected="false">Create account</button>
+      </div>
+
+      <form id="form-in" novalidate>
+        <div class="field"><label for="lEmail">Work email</label><input id="lEmail" type="email" autocomplete="username" placeholder="name@hospital.org"></div>
+        <div class="field"><label for="lPw">Password</label><div class="pwrap"><input id="lPw" type="password" autocomplete="current-password"><button type="button" class="showpw" data-show="lPw">Show</button></div></div>
+        <p class="err" id="err-in" role="alert"></p>
+        <button class="btn primary wide" id="goIn" type="submit">Sign in</button>
+      </form>
+
+      <form id="form-up" novalidate hidden>
+        <div class="field"><label for="rName">Full name</label><input id="rName" type="text" autocomplete="name"></div>
+        <div class="two">
+          <div class="field"><label for="rEmail">Work email</label><input id="rEmail" type="email" autocomplete="username"></div>
+          <div class="field"><label for="rStaff">Staff or licence ID</label><input id="rStaff" type="text" autocomplete="off"></div>
+        </div>
+        <div class="field"><label for="rRole">Role</label><select id="rRole"></select><p class="hint" id="roleHint"></p></div>
+        <div class="two">
+          <div class="field"><label for="rPw">Password</label><div class="pwrap"><input id="rPw" type="password" autocomplete="new-password"><button type="button" class="showpw" data-show="rPw">Show</button></div></div>
+          <div class="field"><label for="rPw2">Confirm password</label><input id="rPw2" type="password" autocomplete="new-password"></div>
+        </div>
+        <div class="rules" id="rules"><span data-r="len">8 or more characters</span><span data-r="let">A letter</span><span data-r="num">A number</span></div>
+        <p class="err" id="err-up" role="alert"></p>
+        <button class="btn primary wide" id="goUp" type="submit">Create account</button>
+      </form>
+      <p class="seats" id="seats"></p>
+      <p class="fine" id="storeNote">Accounts and patient records are saved in the secure server database. Passwords are salted and hashed on the server.</p>
+    </div>
+  </section>
+</div>
+
+
+
+<dialog id="usersDlg" aria-labelledby="usersTitle">
+  <div class="dlg">
+    <div class="ph"><div><h2 id="usersTitle">Users and roles</h2><p id="usersSub"></p></div><button class="iconbtn" id="usersClose" aria-label="Close">&times;</button></div>
+    <div class="tablewrap"><table><thead><tr><th>Name</th><th>Email</th><th>Staff ID</th><th>Role</th><th>Questionnaire</th><th class="num"></th></tr></thead><tbody id="usersBody"></tbody></table></div>
+    <h3 class="sub">What each role can do</h3>
+    <ul class="rolelist" id="roleList"></ul>
+  </div>
+</dialog>
+
+<!-- Post-registration questionnaire -->
+<dialog id="onbDlg" class="narrow" aria-labelledby="onbTitle">
+  <form class="dlg" id="onbForm" novalidate>
+    <div class="ph"><div><h2 id="onbTitle">A few quick questions</h2><p id="onbLead">Three short steps. Your answers set up dose tracking for the patients you add.</p></div><button type="button" class="iconbtn" id="onbX" aria-label="Close" hidden>&times;</button></div>
+    <div class="steps" id="onbSteps"><i></i><i></i><i></i></div>
+
+    <div data-step="0">
+      <p class="stepname">About your practice</p>
+      <div class="field"><label for="oFac">Hospital, clinic or facility</label><input id="oFac" type="text" autocomplete="organization" placeholder="e.g. General Hospital Calabar"></div>
+      <div class="field"><label for="oDept">Your department or unit</label><input id="oDept" type="text" placeholder="e.g. Radiology"></div>
+      <div class="field"><span class="q">Which modalities do you work with?<small>Choose all that apply. The first one is used as your default when logging exams.</small></span>
+        <div class="pick" id="oMods"></div></div>
+      <div class="field"><span class="q">Who are most of your patients?</span>
+        <div class="pick" id="oPop"></div></div>
+    </div>
+
+    <div data-step="1" hidden>
+      <p class="stepname">Dose tracking</p>
+      <div class="field"><span class="q">Which reference levels do you compare against?<small>Diagnostic reference levels (DRLs) decide when an exam counts as high.</small></span>
+        <div class="pick" id="oDrl"></div></div>
+      <div class="field"><span class="q">At what cumulative dose should we ask for a review?<small>Five-year effective dose per patient, in mSv. Patients at 80% of this level get a heads-up.</small></span>
+        <div class="pick" id="oRev"></div>
+        <div id="oRevCustomWrap" hidden style="margin-top:10px;max-width:200px"><input id="oRevCustom" type="number" min="10" max="1000" step="5" placeholder="mSv" aria-label="Custom review level in mSv" style="width:100%;height:44px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:0 12px"></div></div>
+    </div>
+
+    <div data-step="2" hidden>
+      <p class="stepname">Patient information</p>
+      <div class="field"><span class="q">How is pregnancy status checked before imaging women aged 12 to 55?</span>
+        <div class="pick" id="oPreg"></div></div>
+      <div class="field"><span class="q">Do you record patient weight and height?<small>Size is used to estimate dose before a scan.</small></span>
+        <div class="pick" id="oSize"></div></div>
+      <div class="field"><span class="q">Where does a patient's earlier imaging history come from?</span>
+        <div class="pick" id="oPrior"></div></div>
+      <div class="check"><input type="checkbox" id="oConsent"><label for="oConsent">I understand that patient details I enter are stored only for dose tracking and must be handled under my institution's data-protection rules.</label></div>
+    </div>
+
+    <p class="err" id="err-onb" role="alert"></p>
+    <div class="actions">
+      <button type="button" class="btn grow" id="onbOut">Sign out</button>
+      <button type="button" class="btn" id="onbBack">Back</button>
+      <button type="submit" class="btn primary" id="onbNext">Next</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Patient intake questionnaire -->
+<dialog id="patDlg" aria-labelledby="patTitle">
+  <form class="dlg" id="patForm" novalidate>
+    <div class="ph"><div><h2 id="patTitle">Add patient</h2><p>A short intake questionnaire. Each answer sharpens the dose estimate and the flags.</p></div><button type="button" class="iconbtn" data-close="patDlg" aria-label="Close">&times;</button></div>
+
+    <h3 class="sub">About the patient</h3>
+    <div class="fgrid">
+      <div class="field full"><label for="pName">Full name</label><input id="pName" type="text" autocomplete="off"></div>
+      <div class="field"><label for="pId">Patient ID</label><input id="pId" type="text" autocomplete="off"></div>
+      <div class="field"><label for="pDob">Date of birth</label><input id="pDob" type="date"></div>
+      <div class="field"><label for="pSex">Sex</label><select id="pSex"><option value="">Choose</option><option value="F">Female</option><option value="M">Male</option></select></div>
+      <div class="field"><label for="pDept">Referring department</label><select id="pDept"></select></div>
+    </div>
+
+    <h3 class="sub">Body size</h3>
+    <div class="fgrid">
+      <div class="field"><label for="pWt">Weight, kg</label><input id="pWt" type="number" min="2" max="300" step="0.1" inputmode="decimal"></div>
+      <div class="field"><label for="pHt">Height, cm</label><input id="pHt" type="number" min="40" max="230" step="1" inputmode="numeric"></div>
+    </div>
+    <p class="mini-note" id="pSizeEst"></p>
+
+    <div id="pPregWrap" hidden>
+      <h3 class="sub">Pregnancy</h3>
+      <div class="field"><span class="q">Pregnancy status before imaging</span><div class="pick" id="pPreg"></div></div>
+    </div>
+
+    <h3 class="sub">Imaging context</h3>
+    <div class="field"><label for="pInd">Reason for imaging</label><input id="pInd" type="text" placeholder="e.g. Staging follow-up"></div>
+    <div class="field"><label for="pPrior">Scans or X-rays elsewhere in the last 5 years</label>
+      <select id="pPrior"><option value="">Choose</option><option value="0">None</option><option value="1-2">1 to 2</option><option value="3-5">3 to 5</option><option value="6+">6 or more</option><option value="unknown">Not known</option></select></div>
+    <div class="field"><span class="q">Anything that changes how dose should be watched?</span>
+      <div class="check"><input type="checkbox" id="pRt"><label for="pRt">Had radiotherapy before</label></div>
+      <div class="check"><input type="checkbox" id="pOcc"><label for="pOcc">Works with radiation</label></div>
+      <div class="check"><input type="checkbox" id="pFol"><label for="pFol">Expects repeated follow-up imaging</label></div></div>
+    <div class="check"><input type="checkbox" id="pConsent"><label for="pConsent">The patient, or their guardian, has been told that dose details are recorded for safety tracking.</label></div>
+    <p class="err" id="err-pat" role="alert"></p>
+    <div class="actions"><button type="button" class="btn" data-close="patDlg">Cancel</button><button type="submit" class="btn primary" id="patSave">Save patient</button></div>
+  </form>
+</dialog>
+
+<!-- Patient record -->
+<dialog id="pvDlg" aria-labelledby="pvTitle">
+  <div class="dlg" id="pvBody"></div>
+</dialog>
+
+<!-- Log exam -->
+<dialog id="exDlg" class="narrow" aria-labelledby="exTitle">
+  <form class="dlg" id="exForm" novalidate>
+    <div class="ph"><div><h2 id="exTitle">Log exam</h2><p>Enter the dose index shown on the scanner or dose report.</p></div><button type="button" class="iconbtn" data-close="exDlg" aria-label="Close">&times;</button></div>
+    <div class="fgrid">
+      <div class="field full"><label for="xPat">Patient</label><select id="xPat"></select></div>
+      <div class="field full"><label for="xKey">Exam</label><select id="xKey"></select></div>
+      <div class="field"><label for="xDate">Date</label><input id="xDate" type="date"></div>
+      <div class="field"><label for="xVal" id="xValLbl">Dose index</label><input id="xVal" type="number" min="0" step="any" inputmode="decimal"></div>
+      <div class="field full"><label for="xNote">Note (optional)</label><input id="xNote" type="text" maxlength="160" placeholder="e.g. Repeat for motion"></div>
+    </div>
+    <div id="xPreview"></div>
+    <p class="err" id="err-ex" role="alert"></p>
+    <div class="actions"><button type="button" class="btn" data-close="exDlg">Cancel</button><button type="submit" class="btn primary" id="exSave">Save exam</button></div>
+  </form>
+</dialog>
+
+<!-- Exam record -->
+<dialog id="evDlg" class="narrow" aria-labelledby="evTitle">
+  <div class="dlg" id="evBody"></div>
+</dialog>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script src="/xlsx.full.min.js"></script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const E=id=>document.getElementById(id);
+const fmt=(n,d=1)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const DAY=864e5, MAX_USERS=10;
+let TODAY=Date.now(), REVIEW=100;
+const slug=k=>k.toLowerCase().replace(/\s+/g,'-');
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+const median=a=>{if(!a.length)return null;const s=a.slice().sort((x,y)=>x-y),m=s.length>>1;return s.length%2?s[m]:(s[m-1]+s[m])/2};
+
+/* ---------- toast ---------- */
+let tt; function toast(m){const t=E('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2800)}
+
+/* ---------- reference data ---------- */
+const SPEC={
+ CT_HEAD:{mod:'CT',name:'CT head',label:'DLP',unit:'mGy·cm',idx:970,eff:2.0,dec:0},
+ CT_CHEST:{mod:'CT',name:'CT chest',label:'DLP',unit:'mGy·cm',idx:400,eff:5.8,dec:0,len:35},
+ CT_AP:{mod:'CT',name:'CT abdomen and pelvis',label:'DLP',unit:'mGy·cm',idx:650,eff:10,dec:0,len:45},
+ CT_CAP:{mod:'CT',name:'CT chest, abdomen and pelvis',label:'DLP',unit:'mGy·cm',idx:900,eff:14.4,dec:0,len:70},
+ CT_PHEAD:{mod:'CT',name:'CT head, paediatric',label:'DLP',unit:'mGy·cm',idx:480,eff:1.6,dec:0},
+ PET:{mod:'PET/CT',name:'PET/CT whole body',label:'CT DLP',unit:'mGy·cm',idx:520,eff:14,dec:0},
+ XR_CHEST:{mod:'X-ray',name:'Chest X-ray',label:'DAP',unit:'Gy·cm²',idx:0.12,eff:0.1,dec:2},
+ XR_LS:{mod:'X-ray',name:'Lumbar spine X-ray',label:'DAP',unit:'Gy·cm²',idx:1.6,eff:1.5,dec:1},
+ MAMMO:{mod:'Mammography',name:'Mammography, both breasts',label:'AGD',unit:'mGy',idx:1.8,eff:0.4,dec:1},
+ FLUORO:{mod:'Fluoroscopy',name:'Coronary angiography and PCI',label:'DAP',unit:'Gy·cm²',idx:70,eff:12,dec:0}
+};
+Object.entries(SPEC).forEach(([k,s])=>{s.key=k;s.conv=s.eff/s.idx});
+const MODS=['CT','X-ray','Fluoroscopy','Mammography','PET/CT'];
+const PELVIC=['CT_AP','CT_CAP','PET'];
+const DEPTS=['Emergency','Oncology follow-up','Cardiology','Paediatrics','Surgery','Orthopaedics','Obstetrics and gynaecology','Neurology','Outpatient','Other'];
+const PREG={no:'Not pregnant',possible:'Possibly pregnant',yes:'Pregnant',unscreened:'Not screened',na:'Not applicable'};
+const RANK={high:3,medium:2,info:1};
+const SEVLAB={high:'High',medium:'Review',info:'Note'};
+
+/* ---------- roles and permissions ---------- */
+const ROLES={
+ radiographer:{name:'Radiographer',hint:'Records exams, checks patient dose and notifies the radiologist.',can:['exportReport','notify','sendPhysics','addPatient','logExam']},
+ radiologist:{name:'Radiologist',hint:'Reviews AI findings, then dismisses or escalates them.',can:['exportReport','notify','dismiss','sendPhysics','export','addPatient','logExam']},
+ physicist:{name:'Medical physicist',hint:'Analyses protocol outliers, sets reference levels and checks them against DRLs.',can:['exportReport','dismiss','export','editDRL']},
+ rso:{name:'Radiation safety officer',hint:'Audits dose, sets review levels and receives escalations.',can:['exportReport','notify','dismiss','sendPhysics','export','editDRL','addPatient','logExam','deletePatient']},
+ admin:{name:'Administrator',hint:'Manages accounts, roles and backups. The first account on this system gets this role.',can:['exportReport','users','backup','export','notify','dismiss','sendPhysics','editDRL','addPatient','logExam','deletePatient']}
+};
+let session=null;
+const can=a=>!!session&&ROLES[session.role].can.includes(a);
+const gate=a=>can(a)?'':`disabled title="Your role (${ROLES[session.role].name}) can't do this"`;
+function gateEl(el,a){if(!el)return;const ok=can(a);if(el.tagName==='BUTTON')el.disabled=!ok;else{el.style.opacity=ok?'':'.45';el.style.pointerEvents=ok?'':'none'}el.title=ok?'':`Your role (${ROLES[session.role].name}) can't do this`}
+
+/* ---------- database: Vercel serverless API + Neon Postgres ---------- */
+async function api(path,opt){
+  const r=await fetch('/api/'+path,Object.assign({credentials:'same-origin',headers:{'Content-Type':'application/json'}},opt||{}));
+  let j={};try{j=await r.json()}catch(e){}
+  if(!r.ok)throw Object.assign(new Error(j.error||'Request failed'),{status:r.status});
+  return j;
+}
+const post=(path,body)=>api(path,{method:'POST',body:JSON.stringify(body)});
+const DB={
+ all:async s=>(await api('db?store='+s)).rows,
+ get:async(s,k)=>(await api('db?store='+s+'&id='+encodeURIComponent(k))).row||null,
+ put:(s,o)=>api('db?store='+s,{method:'PUT',body:JSON.stringify(o)}),
+ del:(s,k)=>api('db?store='+s+'&id='+encodeURIComponent(k),{method:'DELETE'}),
+ clear:s=>api('db?store='+s+'&action=clear',{method:'POST',body:'{}'})
+};
+const U={all:()=>DB.all('users'),byId:id=>DB.get('users',id),put:u=>DB.put('users',u),del:id=>DB.del('users',id)};
+const usersCount=async()=>(await api('auth')).count;
+const netErr='Could not reach the server. Check your connection and try again.';
+
+/* clean copies for storage and backup (no derived fields) */
+const PAT_KEYS=['id','name','dob','sex','wt','ht','preg','dept','ind','prior','rt','occ','fol','consent','created','by','sample'];
+const EXAM_KEYS=['id','pid','key','t','val','note','by','at','sample'];
+const pick=(o,ks)=>{const r={};ks.forEach(k=>{if(o[k]!==undefined)r[k]=o[k]});return r};
+const putPatient=p=>DB.put('patients',pick(p,PAT_KEYS));
+const putExam=x=>DB.put('exams',pick(x,EXAM_KEYS));
+
+/* ---------- app data in memory ---------- */
+const D={patients:[],exams:[],ex:[],flags:[],byId:{},meta:{}};
+const META0=()=>({drl:{},dismissed:{},notified:{},referrals:[],seeded:false});
+D.meta=META0();
+const saveMeta=()=>DB.put('meta',Object.assign({key:'app'},D.meta));
+async function loadAll(){
+  D.patients=await DB.all('patients'); D.exams=await DB.all('exams');
+  const m=await DB.get('meta','app'); D.meta=Object.assign(META0(),m||{}); delete D.meta.key;
+}
+
+/* ---------- password hashing (PBKDF2, salted) ---------- */
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const unhex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
+async function hashPw(pw,saltHex){
+  const salt=saltHex?unhex(saltHex):crypto.getRandomValues(new Uint8Array(16));
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+  const bits=await crypto.subtle.deriveBits({name:'PBKDF2',salt,iterations:150000,hash:'SHA-256'},key,256);
+  return{salt:hex(salt),hash:hex(bits)};
+}
+const pwOk=p=>({len:p.length>=8,let:/[A-Za-z]/.test(p),num:/\d/.test(p)});
+
+/* ---------- files: save through the viewer when available ---------- */
+async function saveFile(name,data,mime){
+  try{
+    const cl=window.claude; const d=cl&&cl.use?await cl.use('downloads'):null;
+    if(d){await d.save({filename:name,data});toast('Saved '+name);return}
+  }catch(e){if(e&&e.code==='declined')return}
+  const b=new Blob([data],{type:mime||'text/plain'}), a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('Downloaded '+name);
+}
+const csvCell=v=>{let s=v==null?'':String(v);if(/^[=+\-@\t\r]/.test(s)&&isNaN(Number(s)))s="'"+s;return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+const toCsv=rows=>rows.map(r=>r.map(csvCell).join(',')).join('\r\n');
+const ymd=t=>new Date(t).toISOString().slice(0,10);
+
+/* ---------- derived numbers ---------- */
+const drlOf=k=>D.meta.drl[k]!=null?D.meta.drl[k]:SPEC[k].idx;
+const dateTxt=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+const band=r=>r<=1.15?{c:'low',w:'Typical'}:r<=1.3?{c:'mid',w:'Above typical'}:{c:'high',w:'Review'};
+const pct=r=>(r>=1?'+':'\u2212')+Math.abs(Math.round((r-1)*100))+'%';
+const inits=n=>n.split(/\s+/).filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const ageFromDob=iso=>{const d=Date.parse(iso);return isNaN(d)?null:Math.floor((TODAY-d)/(365.25*DAY))};
+function sizeEst(p){
+  if(p.age!=null&&p.age<16)return Math.round(Math.min(30,14+p.age*1.1));
+  if(!p.wt||!p.ht)return null;
+  const bmi=p.wt/Math.pow(p.ht/100,2);
+  return Math.round(Math.max(16,Math.min(42,9+.84*bmi)));
+}
+function prep(){
+  D.byId={}; D.ex=[];
+  D.patients.forEach(p=>{p.age=ageFromDob(p.dob);p.e=[];D.byId[p.id]=p});
+  D.exams.forEach(x=>{
+    const s=SPEC[x.key],p=D.byId[x.pid]; if(!s||!p)return;
+    x.s=s;x.p=p;x.r=x.val/drlOf(x.key);x.eff=x.val*s.conv;p.e.push(x);D.ex.push(x);
+  });
+  D.patients.forEach(p=>{
+    p.e.sort((a,b)=>a.t-b.t);
+    p.five=p.e.filter(e=>e.t>=TODAY-5*365*DAY).reduce((a,e)=>a+e.eff,0);
+    p.twelve=p.e.filter(e=>e.t>=TODAY-365*DAY).reduce((a,e)=>a+e.eff,0);
+    p.bmi=p.wt&&p.ht?p.wt/Math.pow(p.ht/100,2):null;
+    p.wed=sizeEst(p);
+  });
+  D.ex.sort((a,b)=>b.t-a.t);
+  D.flags=computeFlags();
+}
+function computeFlags(){
+  const out=[], add=(p,rule,sev,t,d,why,x)=>out.push({key:p.id+'|'+rule+'|'+(x?x.id:''),p,x:x||null,rule,sev,t,d,why});
+  D.patients.forEach(p=>{
+    const n5=p.e.filter(e=>e.t>=TODAY-5*365*DAY).length, womanAge=p.sex==='F'&&p.age>=12&&p.age<=55;
+    if(p.five>=REVIEW)add(p,'cum','high','Cumulative dose passed the review level',`Five-year effective dose reached ${fmt(p.five)} mSv across ${n5} exams, against a review level of ${fmt(REVIEW,0)} mSv. Ultrasound or MRI may suit the next follow-up where clinically appropriate.`,'Five-year dose at or above the review level');
+    else if(p.five>=REVIEW*.8)add(p,'near','medium','Cumulative dose is close to the review level',`Five-year effective dose is ${fmt(p.five)} mSv, ${Math.round(p.five/REVIEW*100)}% of the ${fmt(REVIEW,0)} mSv review level. Check that the next exam is needed.`,'Five-year dose at 80% of the review level or more');
+    p.e.forEach((x,i)=>{
+      const recent=x.t>=TODAY-365*DAY, prev=p.e[i-1];
+      if(recent&&x.r>1.3){
+        let d=`${x.s.label} was ${fmt(x.val,x.s.dec)} ${x.s.unit}, ${pct(x.r)} against the ${fmt(drlOf(x.key),x.s.dec)} reference level.`;
+        if(p.age!=null&&p.age<16)d+=' This patient is under 16. Review the paediatric protocol with the radiographer on duty.';
+        else if(x.key==='FLUORO'){const k=p.e.filter(e=>e.key==='FLUORO'&&e.t>=TODAY-5*365*DAY).length;d+=` This is interventional procedure ${k} in five years. Check the estimated peak skin dose and consider a skin review.`}
+        else d+=' Check the scan range and protocol settings that were used.';
+        add(p,'drl',(x.r>1.5||(p.age!=null&&p.age<16))?'high':'medium',`${x.s.name} on ${dateTxt(x.t)} ran ${Math.round((x.r-1)*100)}% above the DRL`,d,'Dose index more than 30% over the reference level',x);
+      }
+      if(recent&&prev){
+        const days=Math.round((x.t-prev.t)/DAY);
+        if(x.key===prev.key&&days<=30)add(p,'repeat','medium',`Repeat ${x.s.name.toLowerCase()} after ${days} day${days===1?'':'s'}`,`The earlier exam was on ${dateTxt(prev.t)}. Confirm the second scan was needed before booking further imaging.`,'Same exam repeated within 30 days',x);
+        else if(days<=14)add(p,'close','info',`${prev.s.name} ${days} day${days===1?'':'s'} earlier`,`The earlier exam was on ${dateTxt(prev.t)}. Check that both were needed.`,'Two exams within 14 days',x);
+      }
+      if(recent&&womanAge&&PELVIC.includes(x.key)){
+        if(p.preg==='unscreened')add(p,'preg','high','Pregnancy status not recorded before a pelvic CT',`No pregnancy screening is recorded for the ${dateTxt(x.t)} exam. Update the patient record or contact the referring clinician.`,'Woman aged 12 to 55, no pregnancy screening, pelvic exam',x);
+        else if(p.preg==='yes'||p.preg==='possible')add(p,'preg','high',p.preg==='yes'?'Pelvic exam on a pregnant patient':'Pelvic exam where pregnancy is possible',`The ${dateTxt(x.t)} exam includes the pelvis. Confirm the exam was justified and that the foetal dose was considered.`,'Pregnancy recorded as possible or confirmed, pelvic exam',x);
+      }
+    });
+    if(p.prior==='6+')add(p,'prior','info','Imaging done elsewhere may be missing from this record','The patient reports 6 or more exams elsewhere in five years. The totals here may be an under-count.','Intake answer: 6 or more outside exams');
+  });
+  return out;
+}
+const isOpen=f=>!D.meta.dismissed[f.key];
+const flagsOf=p=>D.flags.filter(f=>f.p===p&&isOpen(f)).sort((a,b)=>RANK[b.sev]-RANK[a.sev]);
+const topSev=p=>{const f=flagsOf(p);return f.length?f[0].sev:null};
+const openFlags=()=>D.flags.filter(isOpen);
+
+/* ---------- sample patients (first run only) ---------- */
+const SEED=[
+ {id:'P-20418',name:'Adaeze Okoro',age:58,sex:'F',dept:'Oncology follow-up',wt:71,ht:163,preg:'na',ind:'Oncology follow-up imaging',prior:'3-5',rt:true,fol:true,
+  ex:[['2022-03-14','CT_CHEST',1.05],['2022-11-02','CT_CAP',.98],['2023-05-19','CT_CAP',1.02],['2023-12-07','PET',1.0],['2024-06-21','CT_CAP',1.10],['2025-02-11','CT_CHEST',.95],['2025-11-05','CT_CAP',1.04],['2026-05-20','CT_CAP',1.12],['2026-09-23','CT_CHEST',1.31]]},
+ {id:'P-17702',name:'Emeka Obi',age:71,sex:'M',dept:'Cardiology',wt:82,ht:172,preg:'na',ind:'Coronary intervention',prior:'1-2',rt:false,fol:true,
+  ex:[['2023-04-10','FLUORO',1.05],['2024-01-22','CT_CHEST',.9],['2025-08-14','FLUORO',1.4],['2026-02-03','CT_HEAD',1.0],['2026-08-29','FLUORO',1.6]]},
+ {id:'P-31955',name:'Chinedu Nwosu',age:9,sex:'M',dept:'Paediatrics',wt:28,ht:130,preg:'na',ind:'Head injury follow-up',prior:'0',rt:false,fol:false,
+  ex:[['2025-12-02','XR_CHEST',.9],['2026-03-18','CT_PHEAD',1.0],['2026-09-27','CT_PHEAD',2.1]]},
+ {id:'P-24861',name:'Ifeoma Eze',age:67,sex:'F',dept:'Surgery',wt:69,ht:158,preg:'na',ind:'Post-surgical review',prior:'1-2',rt:false,fol:true,
+  ex:[['2024-03-09','MAMMO',1.0],['2025-03-15','MAMMO',1.0],['2025-12-12','CT_AP',1.0],['2026-01-08','CT_AP',1.04],['2026-03-04','PET',1.0]]},
+ {id:'P-40127',name:'Halima Sani',age:36,sex:'F',dept:'Emergency',wt:64,ht:165,preg:'unscreened',ind:'Back and pelvic pain',prior:'0',rt:false,fol:false,
+  ex:[['2026-09-18','XR_LS',1.0],['2026-09-30','CT_AP',1.2]]}
+];
+async function seedSample(){
+  const ref=Date.UTC(2026,9,1);
+  for(const s of SEED){
+    const p={id:s.id,name:s.name,dob:new Date(TODAY-(s.age+.25)*365.25*DAY).toISOString().slice(0,10),sex:s.sex,wt:s.wt,ht:s.ht,preg:s.preg,dept:s.dept,ind:s.ind,prior:s.prior,rt:s.rt,occ:false,fol:s.fol,consent:true,created:TODAY,by:'Sample data',sample:true};
+    await putPatient(p); D.patients.push(p);
+    for(const [d,k,r] of s.ex){
+      const off=(ref-Date.parse(d+'T00:00:00Z'))/DAY, t=Math.floor((TODAY-off*DAY)/DAY)*DAY;
+      const x={id:'x'+uid(),pid:s.id,key:k,t,val:+(SPEC[k].idx*r).toFixed(3),note:'',by:'Sample data',at:TODAY,sample:true};
+      await putExam(x); D.exams.push(x);
+    }
+  }
+  D.meta.seeded=true; await saveMeta();
+}
+
+/* ---------- routes and navigation ---------- */
+const ICONS={
+ Overview:'<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>',
+ Patients:'<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/>',
+ Exams:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 9h8M8 13h8M8 17h4"/>',
+ Protocols:'<path d="M5 7h14M5 17h14"/><circle cx="9" cy="7" r="2.2" fill="var(--surface)"/><circle cx="15" cy="17" r="2.2" fill="var(--surface)"/>',
+ 'AI flags':'<path d="M12 3.5l9 15.5H3z"/><path d="M12 10v4M12 16.8v.1"/>',
+ Reports:'<path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10.5a.5.5 0 0 1-.5-.5V4a.5.5 0 0 1 .5-.5z"/><path d="M14 3.5V8h4M9 13h6M9 16.5h6"/>',
+ Settings:'<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+ Users:'<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19.5c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><path d="M16 5.5a3.2 3.2 0 0 1 0 6.2M17.5 14.8c1.8.5 3 2.1 3.3 4.7"/>'
+};
+const NAV=['Overview','Patients','Exams','Protocols','AI flags','Reports','Settings','Users'];
+const ROUTES={
+ Overview:{t:'Dose overview',s:'Cumulative patient dose across CT, X-ray, fluoroscopy, mammography and PET/CT.',search:1,period:1,ph:'Search name or patient ID'},
+ Patients:{t:'Patients',s:'Patient records and the intake questionnaire that feeds dose tracking.',search:1,ph:'Search name, ID or department'},
+ Exams:{t:'Exams',s:'Every exam logged, measured against its reference level.',search:1,period:1,ph:'Search patient or exam'},
+ Protocols:{t:'Protocols',s:'Reference levels (DRLs) and how each protocol is performing.',period:1},
+ 'AI flags':{t:'AI flags',s:'Everything the dose rules flagged, with the reason and the next step.',search:1,ph:'Search patient or flag'},
+ Reports:{t:'Reports',s:'Build, export and print dose summaries.',period:1},
+ Settings:{t:'Settings',s:'Your questionnaire answers, password and data.'}
+};
+const state={route:'Overview',sel:null,filter:'all',q:'',period:30,pf:'all',ef:'all',emod:'',ff:'all',sc:'chest',rp:'summary'};
+function renderNav(){
+  E('nav').innerHTML=NAV.filter(k=>k!=='Users'||can('users')).map(k=>`<a href="#" ${k===state.route?'aria-current="page"':''} data-n="${k}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]}</svg>${k}${k==='AI flags'?'<span class="badge" id="flagBadge">0</span>':''}</a>`).join('');
+}
+function updateChrome(){
+  const prof=session&&session.profile;
+  E('siteName').textContent=(prof&&prof.facility)||'Your facility';
+  E('siteStats').textContent=`${D.patients.length} patient${D.patients.length===1?'':'s'}, ${D.ex.length} exam${D.ex.length===1?'':'s'} saved on this device`;
+  const b=E('flagBadge'); if(b)b.textContent=openFlags().length;
+  gateEl(E('sendPhys'),'sendPhysics');gateEl(E('expCsv'),'export');gateEl(E('addPatientBtn'),'addPatient');gateEl(E('logExamBtn'),'logExam');
+}
+function applyRole(){
+  const r=ROLES[session.role];
+  E('uAv').textContent=inits(session.name);E('uName').textContent=session.name;E('uRole').textContent=r.name;
+}
+function go(r){
+  if(!ROUTES[r])r='Overview';
+  state.route=r; const cfg=ROUTES[r];
+  document.querySelectorAll('.page').forEach(p=>p.hidden=p.id!=='pg-'+slug(r));
+  E('pgTitle').textContent=cfg.t;E('pgSub').textContent=cfg.s;
+  E('searchBox').hidden=!cfg.search;E('period').hidden=!cfg.period;
+  if(cfg.ph)E('q').placeholder=cfg.ph;
+  document.querySelectorAll('#nav a').forEach(a=>{a.dataset.n===r?a.setAttribute('aria-current','page'):a.removeAttribute('aria-current')});
+  renderRoute();window.scrollTo(0,0);
+}
+function renderRoute(){
+  ({Overview:renderOverview,Patients:renderPatients,Exams:renderExams,Protocols:renderProtocols,'AI flags':renderFlags,Reports:renderReports,Settings:renderSettings})[state.route]();
+  updateChrome();
+}
+function refresh(){prep();renderRoute()}
+
+/* ---------- sign in and register ---------- */
+function setTab(t){
+  ['in','up'].forEach(k=>{E('tab-'+k).setAttribute('aria-selected',String(k===t));E('form-'+k).hidden=k!==t});
+  E('err-in').textContent='';E('err-up').textContent='';
+  if(t==='up')fillRoles();
+  updateSeats();
+}
+E('tab-in').onclick=()=>setTab('in'); E('tab-up').onclick=()=>setTab('up');
+async function updateSeats(){
+  const n=await usersCount(), el=E('seats');
+  el.className='seats'+(n>=MAX_USERS?' full':'');
+  el.innerHTML=`<span>${n} of ${MAX_USERS} accounts in use</span><span class="sbar"><u style="width:${Math.min(100,n/MAX_USERS*100)}%"></u></span>`;
+  return n;
+}
+async function fillRoles(){
+  const cnt=await usersCount(), first=cnt===0, sel=E('rRole');
+  sel.innerHTML=(first?['admin']:['radiographer','radiologist','physicist','rso']).map(k=>`<option value="${k}">${ROLES[k].name}</option>`).join('');
+  sel.disabled=first; E('roleHint').textContent=ROLES[sel.value].hint;
+  const full=cnt>=MAX_USERS; E('goUp').disabled=full;
+  if(full)E('err-up').textContent=`All ${MAX_USERS} accounts are in use. Ask an administrator to remove one, then try again.`;
+}
+E('rRole').addEventListener('change',()=>{E('roleHint').textContent=ROLES[E('rRole').value].hint});
+E('rPw').addEventListener('input',e=>{const r=pwOk(e.target.value);document.querySelectorAll('#rules span').forEach(s=>s.classList.toggle('ok',r[s.dataset.r]))});
+document.querySelectorAll('[data-show]').forEach(b=>b.onclick=()=>{const i=E(b.dataset.show),s=i.type==='password';i.type=s?'text':'password';b.textContent=s?'Hide':'Show'});
+
+E('form-in').addEventListener('submit',async e=>{
+  e.preventDefault(); const err=E('err-in'), btn=E('goIn'); err.textContent='';
+  const email=E('lEmail').value.trim().toLowerCase(), pw=E('lPw').value;
+  if(!email||!pw){err.textContent='Enter your email and password.';return}
+  btn.disabled=true;
+  try{ const r=await post('auth',{action:'signin',email,password:pw}); await enter(r.user) }
+  catch(x){err.textContent=x.status?x.message:netErr}
+  finally{btn.disabled=false}
+});
+E('form-up').addEventListener('submit',async e=>{
+  e.preventDefault(); const err=E('err-up'), btn=E('goUp'); err.textContent='';
+  const name=E('rName').value.trim(), email=E('rEmail').value.trim().toLowerCase(), staff=E('rStaff').value.trim(), pw=E('rPw').value;
+  if(name.length<2){err.textContent='Enter your full name.';return}
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){err.textContent='Enter a valid work email, like name@hospital.org.';return}
+  if(staff.length<3){err.textContent='Enter your staff or licence ID.';return}
+  const r=pwOk(pw); if(!(r.len&&r.let&&r.num)){err.textContent='Choose a password with 8 or more characters, including a letter and a number.';return}
+  if(pw!==E('rPw2').value){err.textContent='The two passwords do not match.';return}
+  btn.disabled=true;
+  try{
+    const out=await post('auth',{action:'signup',name,email,staff,password:pw,role:E('rRole').value});
+    await enter(out.user); toast('Account created. You are signed in as '+ROLES[out.user.role].name.toLowerCase());
+  }catch(x){err.textContent=x.status?x.message:netErr}
+  finally{btn.disabled=false}
+});
+
+/* ---------- entering and leaving the app ---------- */
+async function enter(u){
+  session=u; TODAY=Date.now(); REVIEW=(u.profile&&u.profile.rev)||100;
+  await loadAll();
+  if(!D.meta.seeded&&!D.patients.length)await seedSample();
+  prep();
+  if(!D.byId[state.sel]){const o=orderedPatients();state.sel=o.length?o[0].id:null}
+  E('auth').hidden=true;E('app').hidden=false;
+  renderNav();applyRole();go(state.route);
+  if(!u.profile)openOnboarding(false);
+}
+async function leave(){
+  session=null;api('auth',{method:'POST',body:JSON.stringify({action:'signout'})}).catch(()=>{});
+  E('app').hidden=true;E('auth').hidden=false;
+  ['onbDlg','patDlg','exDlg','pvDlg','evDlg','usersDlg'].forEach(i=>{if(E(i).open)E(i).close()});
+  ['lEmail','lPw','rName','rEmail','rStaff','rPw','rPw2'].forEach(i=>E(i).value='');
+  document.querySelectorAll('#rules span').forEach(s=>s.classList.remove('ok'));
+  state.q='';E('q').value='';state.route='Overview';state.sel=null;
+  setTab('in');
+}
+E('signout').onclick=async()=>{await leave();toast('Signed out')};
+E('nav').addEventListener('click',e=>{
+  const a=e.target.closest('a');if(!a)return;e.preventDefault();const n=a.dataset.n;
+  if(n==='Users'){if(can('users')){renderUsers();E('usersDlg').showModal()}}
+  else go(n);
+});
+document.addEventListener('click',e=>{
+  const c=e.target.closest('[data-close]');if(c){const d=E(c.dataset.close);if(d&&d.open)d.close();return}
+  const g=e.target.closest('[data-go]');if(g){const d=g.closest('dialog');if(d&&d.open)d.close();go(g.dataset.go);return}
+  const o=e.target.closest('[data-open]');
+  if(o){if(o.dataset.open==='addPatient'&&can('addPatient'))openPatientForm();
+        else if(o.dataset.open==='logExam'&&can('logExam'))openExamForm(o.dataset.pid)}
+});
+$('#theme').addEventListener('click',()=>{
+  const r=document.documentElement, dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
+  r.dataset.theme=dark?'light':'dark';
+  if(state.route==='Overview')renderScatter();
+});
+E('q').addEventListener('input',e=>{state.q=e.target.value;state.route==='Overview'?renderList():renderRoute()});
+E('period').addEventListener('change',e=>{state.period=+e.target.value;renderRoute()});
+
+/* ---------- admin: users and roles ---------- */
+async function renderUsers(){
+  const us=(await U.all()).sort((a,b)=>a.created-b.created);
+  E('usersSub').textContent=`${us.length} of ${MAX_USERS} accounts in use. Only administrators see this. New accounts start with the role they chose at sign-up.`;
+  E('usersBody').innerHTML=us.map(u=>{const me=u.id===session.id;return `<tr data-id="${u.id}"><td>${esc(u.name)}${me?' <span class="tag">You</span>':''}</td><td>${esc(u.email)}</td><td>${esc(u.staff)}</td><td>${me?ROLES[u.role].name:`<select class="rolesel" aria-label="Role for ${esc(u.name)}">${Object.keys(ROLES).map(k=>`<option value="${k}" ${k===u.role?'selected':''}>${ROLES[k].name}</option>`).join('')}</select>`}</td><td>${u.profile?'<span class="pill low">Done</span>':'<span class="pill mid">Pending</span>'}</td><td class="num">${me?'':'<button class="btn rm">Remove</button>'}</td></tr>`}).join('');
+  E('roleList').innerHTML=Object.values(ROLES).map(r=>`<li><b>${r.name}.</b> ${r.hint}</li>`).join('');
+}
+E('usersBody').addEventListener('change',async e=>{
+  const s=e.target.closest('.rolesel');if(!s)return;const id=s.closest('tr').dataset.id, nm=s.closest('tr').children[0].textContent.replace('You','').trim();
+  try{await DB.put('users',{id,role:s.value});toast(nm+' is now '+ROLES[s.value].name.toLowerCase())}catch(x){toast(x.message)}
+});
+E('usersBody').addEventListener('click',async e=>{
+  const b=e.target.closest('.rm');if(!b)return;
+  if(!b.dataset.armed){b.dataset.armed='1';b.textContent='Confirm remove';setTimeout(()=>{b.dataset.armed='';b.textContent='Remove'},3000);return}
+  const id=b.closest('tr').dataset.id; await U.del(id); toast('Account removed'); renderUsers();
+});
+E('usersClose').onclick=()=>E('usersDlg').close();
+
+/* ---------- post-registration questionnaire ---------- */
+const ONB={
+ mods:MODS.map(m=>[m,m]),
+ pop:[['adults','Mostly adults'],['paeds','Mostly children'],['mixed','A mix of ages'],['women','Mostly women']],
+ drl:[['national','National DRLs'],['local','Our own local DRLs'],['none','Not sure yet']],
+ rev:[['50','50 mSv'],['100','100 mSv'],['200','200 mSv'],['custom','Other']],
+ preg:[['always','Always written in the notes'],['verbal','Asked, but not written down'],['rare','Rarely checked']],
+ size:[['always','Always'],['sometimes','Sometimes'],['rarely','Rarely']],
+ prior:[['ris','RIS or PACS'],['patient','The patient tells us'],['letters','Referral letters'],['none','Not available']]
+};
+const LAB=(k,v)=>{const o=ONB[k].find(x=>x[0]===v);return o?o[1]:'Not answered'};
+function buildPick(id,opts,type){E(id).innerHTML=opts.map(([v,l],i)=>`<span><input type="${type}" name="${id}" id="${id}_${i}" value="${esc(v)}"><label for="${id}_${i}">${esc(l)}</label></span>`).join('')}
+const getPick=(id,multi)=>{const c=[...E(id).querySelectorAll('input:checked')].map(i=>i.value);return multi?c:(c[0]||'')};
+const setPick=(id,val)=>{const a=Array.isArray(val)?val:[val];E(id).querySelectorAll('input').forEach(i=>{i.checked=a.includes(i.value)})};
+let onbStep=0, onbEdit=false;
+function openOnboarding(edit){
+  onbEdit=edit; onbStep=0;
+  buildPick('oMods',ONB.mods,'checkbox');buildPick('oPop',ONB.pop,'radio');buildPick('oDrl',ONB.drl,'radio');buildPick('oRev',ONB.rev,'radio');
+  buildPick('oPreg',ONB.preg,'radio');buildPick('oSize',ONB.size,'radio');buildPick('oPrior',ONB.prior,'radio');
+  const p=session.profile;
+  E('oFac').value=p?p.facility:'';E('oDept').value=p?p.dept:'';
+  setPick('oMods',p?p.mods:[]);setPick('oPop',p?p.pop:'');setPick('oDrl',p?p.drl:'');
+  const std=p&&['50','100','200'].includes(String(p.rev));
+  setPick('oRev',p?(std?String(p.rev):'custom'):'100');
+  E('oRevCustom').value=p&&!std?p.rev:'';
+  setPick('oPreg',p?p.preg:'');setPick('oSize',p?p.size:'');setPick('oPrior',p?p.prior:'');E('oConsent').checked=!!p;
+  E('onbX').hidden=!edit;E('onbOut').hidden=edit;
+  E('onbTitle').textContent=edit?'Edit your answers':'A few quick questions';
+  E('onbLead').textContent=edit?'Changes apply straight away.':'Three short steps. Your answers set up dose tracking for the patients you add.';
+  showStep();E('err-onb').textContent='';
+  if(!E('onbDlg').open)E('onbDlg').showModal();
+}
+function showStep(){
+  document.querySelectorAll('#onbForm [data-step]').forEach(s=>s.hidden=+s.dataset.step!==onbStep);
+  document.querySelectorAll('#onbSteps i').forEach((i,k)=>i.classList.toggle('on',k<=onbStep));
+  E('onbBack').hidden=onbStep===0;
+  E('onbNext').textContent=onbStep===2?(onbEdit?'Save answers':'Finish setup'):'Next';
+  E('oRevCustomWrap').hidden=getPick('oRev')!=='custom';
+}
+E('oRev').addEventListener('change',()=>{E('oRevCustomWrap').hidden=getPick('oRev')!=='custom'});
+function onbError(step){
+  if(step===0){
+    if(E('oFac').value.trim().length<2)return 'Enter the name of your facility.';
+    if(E('oDept').value.trim().length<2)return 'Enter your department or unit.';
+    if(!getPick('oMods',true).length)return 'Choose at least one modality.';
+    if(!getPick('oPop'))return 'Choose who most of your patients are.';
+  }
+  if(step===1){
+    if(!getPick('oDrl'))return 'Choose which reference levels you compare against.';
+    const r=getPick('oRev'); if(!r)return 'Choose a review level.';
+    if(r==='custom'){const v=+E('oRevCustom').value;if(!(v>=10&&v<=1000))return 'Enter a review level between 10 and 1000 mSv.'}
+  }
+  if(step===2){
+    if(!getPick('oPreg'))return 'Tell us how pregnancy status is checked.';
+    if(!getPick('oSize'))return 'Tell us whether you record weight and height.';
+    if(!getPick('oPrior'))return 'Tell us where earlier imaging history comes from.';
+    if(!E('oConsent').checked)return 'Tick the box to confirm you understand how patient details are handled.';
+  }
+  return '';
+}
+E('onbForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const err=E('err-onb'); const m=onbError(onbStep); err.textContent=m; if(m)return;
+  if(onbStep<2){onbStep++;showStep();return}
+  const r=getPick('oRev');
+  const profile={facility:E('oFac').value.trim(),dept:E('oDept').value.trim(),mods:getPick('oMods',true),pop:getPick('oPop'),drl:getPick('oDrl'),rev:r==='custom'?+E('oRevCustom').value:+r,preg:getPick('oPreg'),size:getPick('oSize'),prior:getPick('oPrior'),done:Date.now()};
+  const wasNew=!session.profile;
+  session.profile=profile; REVIEW=profile.rev;
+  try{await U.put(session)}catch(x){err.textContent='Your answers could not be saved. Check your connection and try again.';return}
+  E('onbDlg').close(); prep();
+  if(wasNew){go('Overview');toast('Setup complete. Add your first patient on the Patients page.')}
+  else{renderRoute();toast('Answers saved')}
+});
+E('onbBack').onclick=()=>{if(onbStep>0){onbStep--;showStep();E('err-onb').textContent=''}};
+E('onbX').onclick=()=>E('onbDlg').close();
+E('onbOut').onclick=async()=>{E('onbDlg').close();await leave();toast('Signed out. Finish the questionnaire next time you sign in.')};
+E('onbDlg').addEventListener('cancel',e=>{if(!onbEdit)e.preventDefault()});
+
+/* =====================================================
+   OVERVIEW
+   ===================================================== */
+function renderOverview(){renderKpis();renderList();renderDetail();syncPredictor(false);renderScatter()}
+const periodLabel=()=>state.period?(state.period===365?'12 months':state.period+' days'):'all time';
+function win(){const a=state.period?TODAY-state.period*DAY:0;return{a,b:TODAY,pa:state.period?a-state.period*DAY:null}}
+const inWin=(x,a,b)=>x.t>=a&&x.t<=b;
+function spark(a,col){const W=96,H=30,mn=Math.min(...a),mx=Math.max(...a);const pts=a.map((v,i)=>[i/(a.length-1)*(W-6)+3,H-4-(v-mn)/((mx-mn)||1)*(H-8)]);
+  return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><polyline fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" points="${pts.map(p=>p.join(',')).join(' ')}"/><circle cx="${pts.at(-1)[0]}" cy="${pts.at(-1)[1]}" r="3.2" fill="${col}"/></svg>`}
+function buckets(fn){
+  const w=win(), a=w.a||(D.ex.length?Math.min(...D.ex.map(x=>x.t)):TODAY-30*DAY), n=7, step=Math.max(1,(TODAY-a)/n), out=[];
+  for(let i=0;i<n;i++){const lo=a+i*step,hi=a+(i+1)*step;out.push(fn(D.ex.filter(x=>x.t>=lo&&(x.t<hi||(i===n-1&&x.t<=hi)))))}
+  return out;
+}
+function renderKpis(){
+  const w=win(), cur=D.ex.filter(x=>inWin(x,w.a,w.b)), prev=w.pa!=null?D.ex.filter(x=>inWin(x,w.pa,w.a-1)):[];
+  const over=a=>a.length?a.filter(x=>x.r>1).length/a.length*100:0;
+  const chest=cur.filter(x=>x.key==='CT_CHEST').map(x=>x.val), chestPrev=prev.filter(x=>x.key==='CT_CHEST').map(x=>x.val);
+  const mc=median(chest), drlC=drlOf('CT_CHEST');
+  const fl=openFlags(), hi=fl.filter(f=>f.sev==='high').length;
+  const d1=w.pa==null?'All exams on record':(prev.length?`<b>${cur.length>=prev.length?'+':'\u2212'}${Math.abs(Math.round((cur.length-prev.length)/prev.length*100))}%</b> on the previous ${periodLabel()}`:'No earlier exams to compare');
+  const o=over(cur), op=over(prev);
+  const d2=!cur.length?'No exams in this period':(w.pa!=null&&prev.length?`<b class="${o<=op?'good':'bad'}">${o<=op?'Down':'Up'} from ${fmt(op)}%</b> last period`:'Share of exams over the reference level');
+  const d3=mc==null?'No chest CT in this period':`<b class="${mc<=drlC?'good':'bad'}">${Math.abs(Math.round((mc/drlC-1)*100))}% ${mc<=drlC?'under':'over'}</b> the ${fmt(drlC,0)} DRL`;
+  let last=drlC;
+  E('kpis').innerHTML=`
+   <div class="kpi">${spark(buckets(a=>a.length),'var(--accent)')}<span class="l">Exams recorded</span><span class="v">${fmt(cur.length,0)}</span><span class="d">${d1}</span></div>
+   <div class="kpi">${spark(buckets(a=>over(a)),o>20?'var(--high)':'var(--low)')}<span class="l">Exams above local DRL</span><span class="v">${fmt(o)}%<small>${cur.filter(x=>x.r>1).length} exams</small></span><span class="d">${d2}</span></div>
+   <div class="kpi">${spark(buckets(a=>{const m=median(a.filter(x=>x.key==='CT_CHEST').map(x=>x.val));if(m!=null)last=m;return last}),'var(--low)')}<span class="l">Median chest CT dose</span><span class="v">${mc==null?'\u2013':fmt(mc,0)}<small>mGy·cm</small></span><span class="d">${d3}</span></div>
+   <div class="kpi"><span class="l">Open AI flags</span><span class="v">${fl.length}</span><span class="d"><b class="${hi?'bad':'good'}">${hi} high</b> priority, ${fl.length-hi} to review</span></div>`;
+}
+function orderedPatients(){return D.patients.slice().sort((a,b)=>(RANK[topSev(b)]||0)-(RANK[topSev(a)]||0)||b.twelve-a.twelve)}
+function renderList(){
+  if(!D.patients.length){E('list').innerHTML=`<p class="empty">No patients yet. <button class="link" data-go="Patients">Add the first patient</button> to start tracking dose.</p>`;return}
+  const q=state.q.trim().toLowerCase();
+  const rows=orderedPatients().filter(p=>{
+    const t=topSev(p);
+    if(state.filter!=='all'&&t!==state.filter)return false;
+    return !q||p.name.toLowerCase().includes(q)||p.id.toLowerCase().includes(q);
+  });
+  E('list').innerHTML=rows.length?rows.map(p=>{
+    const t=topSev(p)||'info', f=flagsOf(p)[0], w=Math.min(100,p.twelve/50*100), col=p.twelve<20?'var(--low)':p.twelve<40?'var(--mid)':'var(--high)';
+    return `<button class="row" data-id="${esc(p.id)}" aria-pressed="${p.id===state.sel}">
+      <span class="av sev-${t}">${esc(inits(p.name))}</span>
+      <span class="who"><strong>${esc(p.name)}</strong><small>${p.age==null?'':p.age+' '}${p.sex}, ${esc(p.id)}</small><em>${f?esc(f.t):'No open flags'}</em></span>
+      <span class="dose"><b>${fmt(p.twelve)}</b><small>mSv, 12 months</small><i class="bar"><u style="width:${w}%;background:${col}"></u></i></span></button>`}).join(''):'<p class="empty">No patients match. Clear the search or choose All.</p>';
+}
+E('list').addEventListener('click',e=>{const b=e.target.closest('.row');if(!b)return;state.sel=b.dataset.id;renderList();renderDetail();syncPredictor(true)});
+E('filters').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.filter=b.dataset.f;document.querySelectorAll('#filters .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderList()});
+
+/* ----- patient detail ----- */
+let chartPts={};
+function chartSVG(p){
+  const W=760,H=290,ml=46,mr=18,mt=16,mb=30,iw=W-ml-mr,ih=H-mt-mb,t1=TODAY,t0=TODAY-5*365*DAY, ex=p.e.filter(e=>e.t>=t0);
+  const ymax=Math.max(40,Math.ceil(p.five*1.25/40)*40);
+  const X=t=>ml+(t-t0)/(t1-t0)*iw, Y=v=>mt+ih-v/ymax*ih;
+  let cum=0, d=`M${X(t0).toFixed(1)} ${Y(0).toFixed(1)}`; chartPts={};
+  ex.forEach(e=>{d+=` H${X(e.t).toFixed(1)} V${Y(cum+e.eff).toFixed(1)}`;cum+=e.eff;chartPts[e.id]={x:X(e.t),y:Y(cum),W,H}});
+  d+=` H${X(t1).toFixed(1)}`;
+  let g='<g class="ax">';
+  for(let k=0;k<=4;k++){const v=ymax/4*k;g+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" ${k?'stroke-dasharray="2 4"':''}/><text x="${ml-10}" y="${Y(v)+4}" text-anchor="end">${Math.round(v)}</text>`}
+  for(let y=new Date(t0).getUTCFullYear()+1;y<=new Date(t1).getUTCFullYear();y++){const x=X(Date.UTC(y,0,1));if(x<ml||x>W-mr)continue;g+=`<line x1="${x}" x2="${x}" y1="${mt+ih}" y2="${mt+ih+5}" stroke="var(--line)"/><text x="${x}" y="${H-8}" text-anchor="middle">${y}</text>`}
+  g+=`<text x="${ml-10}" y="${mt-5}" text-anchor="end" style="font-size:11px">mSv</text></g>`;
+  const rev=REVIEW<=ymax?`<line x1="${ml}" x2="${W-mr}" y1="${Y(REVIEW)}" y2="${Y(REVIEW)}" stroke="var(--high)" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W-mr}" y="${Y(REVIEW)-7}" text-anchor="end" style="fill:var(--high);font-size:12px;font-weight:600">Review level, ${fmt(REVIEW,0)} mSv</text>`:'';
+  const marks=ex.map(e=>{const b=band(e.r),c=chartPts[e.id];return `<circle class="mk" data-x="${e.id}" tabindex="0" r="7" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" fill="var(--${b.c})" role="img" aria-label="${esc(e.s.name)}, ${dateTxt(e.t)}, ${fmt(e.eff)} millisieverts"/>`}).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Cumulative effective dose over five years">${g}
+    <path class="area-in" d="${d} V${Y(0)} Z" fill="var(--accent)" fill-opacity=".09"/>${rev}
+    <path class="line-draw" pathLength="1" d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round"/>${marks}</svg>`;
+}
+function renderDetail(){
+  const p=D.byId[state.sel];
+  if(!p){E('detail').innerHTML=`<h2 style="font-family:var(--display);font-size:24px;font-weight:700;letter-spacing:-.02em">No patient selected</h2><p class="empty" style="padding-left:0">${D.patients.length?'Choose a patient from the list to see their dose history.':'Add a patient to see their cumulative dose, flags and exam history here.'}</p>${can('addPatient')?'<button class="btn primary" data-open="addPatient">Add patient</button>':''}`;return}
+  const cumPct=Math.min(100,p.five/REVIEW*100), finds=flagsOf(p);
+  const sz=[p.wt?p.wt+' kg':'',p.ht?p.ht+' cm':'',p.bmi?'BMI '+fmt(p.bmi):''].filter(Boolean).join(', ');
+  E('detail').innerHTML=`
+   <div class="pid"><div><h2>${esc(p.name)}${p.sample?'<span class="sample-tag">Sample</span>':''}</h2><p>${p.age==null?'':p.age+' years, '}${p.sex==='F'?'female':'male'}, ${esc(p.id)}</p></div><span class="tag">${esc(p.dept||'No department')}</span></div>
+   <div class="tags" style="margin:-8px 0 16px">${sz?`<span class="tag">${esc(sz)}</span>`:'<span class="tag">Size not recorded</span>'}${p.preg&&p.preg!=='na'?`<span class="pill ${p.preg==='no'?'low':p.preg==='unscreened'?'high':'mid'}">${PREG[p.preg]}</span>`:''}${p.rt?'<span class="tag">Previous radiotherapy</span>':''}${p.fol?'<span class="tag">Follow-up imaging expected</span>':''}</div>
+   <div class="stats">
+     <div class="stat"><span class="l">Last 12 months</span><span class="v">${fmt(p.twelve)}<small>mSv</small></span></div>
+     <div class="stat"><span class="l">Last 5 years</span><span class="v">${fmt(p.five)}<small>mSv</small></span>
+       <div class="meter" role="img" aria-label="${Math.round(cumPct)}% of the review level"><span style="width:${cumPct}%;${p.five>=REVIEW?'background:var(--high)':''}"></span><i></i></div>
+       <span class="n">${p.five>=REVIEW?'Over':Math.round(cumPct)+'% of'} the ${fmt(REVIEW,0)} mSv review level</span></div>
+     <div class="stat"><span class="l">Exams</span><span class="v">${p.e.length}</span></div>
+   </div>
+   <div class="chartwrap" id="cw">${chartSVG(p)}<div class="tip" id="tip" hidden></div></div>
+   <div class="legend"><span><i class="dot low"></i>Typical, within 15% of DRL</span><span><i class="dot mid"></i>15 to 30% over</span><span><i class="dot high"></i>More than 30% over</span></div>
+   <h3 class="sub">AI findings</h3>
+   <div id="finds">${finds.length?finds.map(f=>`
+     <article class="find" data-k="${esc(f.key)}"><span class="pill sev-${f.sev}">${SEVLAB[f.sev]}</span>
+       <div><h4>${esc(f.t)}</h4><p>${esc(f.d)}</p><div class="meta">Rule: ${esc(f.why)}${D.meta.notified[f.key]?' · Radiologist notified '+dateTxt(D.meta.notified[f.key].at):''}</div>
+       <div class="acts"><button class="btn primary" data-a="notify" ${gate('notify')}>Notify radiologist</button>${f.x?'<button class="btn" data-a="open">Open exam</button>':''}<button class="btn" data-a="dismiss" ${gate('dismiss')}>Dismiss</button></div></div></article>`).join(''):'<p class="empty" style="padding-left:0">No open flags for this patient.</p>'}</div>
+   <div class="flaghead"><h3 class="sub">Exam history</h3><span><button class="btn sm" data-go="Patients" style="margin-right:6px">Patient record</button><button class="btn sm primary" data-open="logExam" data-pid="${esc(p.id)}" ${gate('logExam')}>Log exam</button></span></div>
+   ${p.e.length?`<div class="tablewrap"><table><thead><tr><th>Date</th><th>Exam</th><th class="num">Dose index</th><th class="num">Effective dose</th><th>Against DRL</th></tr></thead><tbody>
+   ${p.e.slice().reverse().map(e=>{const b=band(e.r);return `<tr data-x="${e.id}" style="cursor:pointer"><td>${dateTxt(e.t)}</td><td>${esc(e.s.name)}</td><td class="num">${e.s.label} ${fmt(e.val,e.s.dec)} ${e.s.unit}</td><td class="num">${fmt(e.eff)} mSv</td><td><span class="pill ${b.c}">${b.w} ${pct(e.r)}</span></td></tr>`}).join('')}
+   </tbody></table></div>`:'<p class="empty" style="padding-left:0">No exams logged yet.</p>'}`;
+}
+function showTip(id){
+  const x=D.exams.find(e=>e.id===id), pt=chartPts[id], tip=E('tip'); if(!x||!pt||!tip||!x.s)return;
+  tip.innerHTML=`<strong>${esc(x.s.name)}</strong>${dateTxt(x.t)}<br>Effective dose ${fmt(x.eff)} mSv<br>${x.s.label} ${fmt(x.val,x.s.dec)} ${x.s.unit}, ${pct(x.r)} vs DRL`;
+  const lx=pt.x/pt.W*100, ly=pt.y/pt.H*100;
+  tip.style.left=lx+'%';tip.style.top=ly+'%';
+  tip.style.transform=`translate(${lx>70?'-100%':lx<20?'0':'-50%'},calc(-100% - 14px))`;
+  tip.hidden=false;
+  document.querySelectorAll('.mk').forEach(m=>m.classList.toggle('on',m.dataset.x===id));
+}
+function hideTip(){const t=E('tip');if(t)t.hidden=true;document.querySelectorAll('.mk.on').forEach(m=>m.classList.remove('on'))}
+const hit=e=>{const t=e.target.closest&&e.target.closest('.mk,tr[data-x]');return t?t.dataset.x:null};
+E('detail').addEventListener('mouseover',e=>{const i=hit(e);if(i)showTip(i)});
+E('detail').addEventListener('mouseout',e=>{if(hit(e))hideTip()});
+E('detail').addEventListener('focusin',e=>{const i=hit(e);if(i&&e.target.classList.contains('mk'))showTip(i)});
+E('detail').addEventListener('focusout',e=>{if(hit(e))hideTip()});
+E('detail').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]');
+  if(b){
+    const key=b.closest('.find').dataset.k, f=D.flags.find(x=>x.key===key); if(!f)return;
+    await flagAction(b.dataset.a,f);return;
+  }
+  if(e.target.closest('button'))return;
+  const r=e.target.closest('tr[data-x],.mk'); if(r)openExamView(r.dataset.x);
+});
+E('detail').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.classList.contains('mk'))openExamView(e.target.dataset.x)});
+async function flagAction(a,f){
+  if(a==='dismiss'){if(!can('dismiss'))return;D.meta.dismissed[f.key]={at:Date.now(),by:session.name};await saveMeta();toast('Flag dismissed');refresh()}
+  else if(a==='restore'){if(!can('dismiss'))return;delete D.meta.dismissed[f.key];await saveMeta();toast('Flag restored');refresh()}
+  else if(a==='notify'){if(!can('notify'))return;D.meta.notified[f.key]={at:Date.now(),by:session.name};await saveMeta();toast('Radiologist notification logged for '+f.p.name);refresh()}
+  else if(a==='open'){if(f.x)openExamView(f.x.id)}
+  else if(a==='patient'){openPatientView(f.p.id)}
+}
+
+/* ----- predictor ----- */
+function syncPredictor(fromPatient){
+  const p=D.byId[state.sel];
+  if(fromPatient&&p&&p.wed)E('pSize').value=p.wed;
+  updatePredictor();
+}
+function updatePredictor(){
+  const key=E('pExam').value, s=SPEC[key], d=+E('pSize').value, f=+document.querySelector('input[name=proto]:checked').value;
+  E('pSizeOut').textContent=d+' cm';
+  const p=D.byId[state.sel];
+  E('pSizeHint').textContent=p?(p.wed?(p.wed===d?`Estimated from ${p.name}'s ${p.age<16?'age':'weight and height'}. Drag to change.`:`${p.name}'s estimated size is ${p.wed} cm.`):`No weight or height recorded for ${p.name}.`):'';
+  const ref=s.idx*Math.exp(.05*(d-30)), dlp=s.idx*.92*Math.exp(.055*(d-30))*f, std=s.idx*.92*Math.exp(.055*(d-30));
+  const k=s.eff/s.idx, eff=dlp*k, ratio=dlp/ref, b=band(ratio), saved=(std-dlp)*k;
+  const after=p?p.five+eff:null;
+  E('result').innerHTML=`
+   <div class="big">${fmt(dlp,0)}<small>mGy·cm predicted DLP</small></div>
+   <div class="mini"><div><b>${fmt(dlp/s.len)}</b>CTDIvol, mGy</div><div><b>${fmt(eff)}</b>Effective dose, mSv</div><div><b><span class="pill ${b.c}">${pct(ratio)}</span></b>vs size-adjusted DRL</div></div>
+   <div><div class="gauge" role="img" aria-label="Predicted dose is ${pct(ratio)} against the size-adjusted reference"><i style="left:${Math.min(100,ratio/1.6*100)}%"></i></div>
+   <div class="gl"><span>0</span><span>DRL for this size, ${fmt(ref,0)}</span><span>1.6 times</span></div></div>
+   <p class="impact">${f<1?`This protocol saves about <b>${fmt(saved)} mSv</b> compared with standard. `:''}${p?`If run for <b>${esc(p.name)}</b>, the five-year total would reach <b>${fmt(after)} mSv</b>, ${after>=REVIEW?'<b style="color:var(--high)">over</b> the review level':'under the review level'}.`:'Select a patient to see the effect on their five-year total.'}</p>`;
+}
+['pExam','pSize'].forEach(id=>E(id).addEventListener('input',updatePredictor));
+document.querySelectorAll('input[name=proto]').forEach(r=>r.addEventListener('change',updatePredictor));
+
+/* ----- outlier scatter ----- */
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const SC={chest:{key:'CT_CHEST',label:'CT chest',idx:400,ref:30,sd:5,min:18,max:44,seed:11},ap:{key:'CT_AP',label:'CT abdomen and pelvis',idx:650,ref:31,sd:5.5,min:18,max:44,seed:23},head:{key:'CT_HEAD',label:'CT head',idx:970,ref:17,sd:1.4,min:13,max:21,seed:37}};
+function realOutliers(){const c=SC[state.sc],w=win();return D.ex.filter(x=>x.key===c.key&&inWin(x,w.a,w.b)&&x.r>1.3)}
+function renderScatter(){
+  const c=SC[state.sc], r=rng(c.seed), N=160, g=()=>Math.sqrt(-2*Math.log(1-r()))*Math.cos(2*Math.PI*r());
+  const exp=d=>c.idx*Math.exp(.05*(d-c.ref)), pts=[];
+  for(let i=0;i<N;i++){const d=Math.min(c.max,Math.max(c.min,c.ref+c.sd*g()));let q=.94*Math.exp(.13*g());if(r()<.06)q*=1.35+.6*r();pts.push({d,y:exp(d)*q,q})}
+  const w=win(), real=D.ex.filter(x=>x.key===c.key&&inWin(x,w.a,w.b)).map(x=>{
+    const wd=x.p.wed||30, d=state.sc==='head'?c.ref+(wd-30)*.12:wd;return{x,d:Math.min(c.max,Math.max(c.min,d)),y:x.val}});
+  const W=560,H=310,ml=52,mr=14,mt=14,mb=42,iw=W-ml-mr,ih=H-mt-mb, ymax=Math.ceil(Math.max(...pts.map(p=>p.y),...real.map(p=>p.y))*1.08/100)*100;
+  const X=d=>ml+(d-c.min)/(c.max-c.min)*iw, Y=v=>mt+ih-v/ymax*ih;
+  let ax='<g class="ax">';
+  for(let k=0;k<=4;k++){const v=ymax/4*k;ax+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" ${k?'stroke-dasharray="2 4"':''}/><text x="${ml-8}" y="${Y(v)+4}" text-anchor="end">${Math.round(v)}</text>`}
+  const step=c.max-c.min>20?5:2;for(let d=Math.ceil(c.min/step)*step;d<=c.max;d+=step)ax+=`<text x="${X(d)}" y="${H-22}" text-anchor="middle">${d}</text>`;
+  ax+=`<text x="${ml+iw/2}" y="${H-5}" text-anchor="middle">Patient size, cm</text><text transform="translate(13 ${mt+ih/2}) rotate(-90)" text-anchor="middle">DLP, mGy·cm</text></g>`;
+  const curve=m=>{let s='';for(let d=c.min;d<=c.max;d+=.5)s+=(s?'L':'M')+X(d).toFixed(1)+' '+Y(Math.min(ymax,exp(d)*m)).toFixed(1);return s};
+  const ok=pts.filter(p=>p.q<=1.3), bad=pts.filter(p=>p.q>1.3);
+  const rOut=real.filter(p=>p.x.r>1.3).length;
+  E('scatter').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Scatter of dose length product against patient size for ${c.label}">${ax}
+    <path d="${curve(1.3)}" fill="none" stroke="var(--high)" stroke-width="1.5" stroke-dasharray="6 5"/>
+    <path d="${curve(1)}" fill="none" stroke="var(--ink-3)" stroke-width="1.8"/>
+    ${ok.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="3.6" fill="var(--low)" fill-opacity=".3"/>`).join('')}
+    ${bad.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="4.6" fill="var(--high)" fill-opacity=".35"/>`).join('')}
+    ${real.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="6.5" fill="${p.x.r>1.3?'var(--high)':'var(--low)'}" stroke="var(--ink)" stroke-width="2"><title>${esc(p.x.p.name)}, ${dateTxt(p.x.t)}, ${pct(p.x.r)} vs DRL</title></circle>`).join('')}</svg>
+    <div class="legend"><span><i class="dot low"></i>Within reference</span><span><i class="dot high"></i>More than 30% over</span><span>Ringed: logged here. Solid line: size-adjusted DRL. Dashed: +30%</span></div>`;
+  E('scNote').innerHTML=real.length?`<b>${rOut} of ${real.length} ${c.label} exams</b> logged in ${periodLabel()} ran more than 30% over the reference level. Sample baseline: ${bad.length} of ${N}.`:`No ${c.label} exams logged in ${periodLabel()}. Showing the sample baseline: ${bad.length} of ${N} ran more than 30% over.`;
+}
+E('scChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.sc=b.dataset.p;document.querySelectorAll('#scChips .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderScatter()});
+E('sendPhys').addEventListener('click',async()=>{
+  if(!can('sendPhysics'))return;
+  const c=SC[state.sc], sent=new Set(D.meta.referrals.flatMap(x=>x.exams)), out=realOutliers().filter(x=>!sent.has(x.id));
+  if(!out.length){toast(realOutliers().length?'These outliers were already sent':`No logged ${c.label} exams are more than 30% over in ${periodLabel()}`);return}
+  D.meta.referrals.push({id:uid(),at:Date.now(),by:session.name,protocol:c.label,exams:out.map(x=>x.id),n:out.length});
+  await saveMeta();toast(out.length+' outlier exam'+(out.length===1?'':'s')+' sent to the physics team');
+});
+E('expCsv').addEventListener('click',()=>{
+  if(!can('export'))return;
+  const out=realOutliers(); if(!out.length){toast('No logged outliers to export for '+SC[state.sc].label);return}
+  saveFile(`outliers-${state.sc}-${ymd(TODAY)}.csv`,toCsv([['Date','Patient ID','Patient','Exam','Dose index','Unit','Against DRL'],...out.map(x=>[ymd(x.t),x.p.id,x.p.name,x.s.name,x.val,x.s.unit,pct(x.r)])]),'text/csv');
+});
+
+/* =====================================================
+   PATIENTS
+   ===================================================== */
+const pregPill=p=>p.preg&&p.preg!=='na'?`<span class="pill ${p.preg==='no'?'low':p.preg==='unscreened'?'high':'mid'}">${PREG[p.preg]}</span>`:'<span class="mini-note">\u2013</span>';
+function renderPatients(){
+  const q=state.q.trim().toLowerCase();
+  const rows=orderedPatients().filter(p=>{
+    if(state.pf==='flagged'&&!flagsOf(p).length)return false;
+    if(state.pf==='paeds'&&!(p.age!=null&&p.age<16))return false;
+    if(state.pf==='women'&&!(p.sex==='F'&&p.age>=12&&p.age<=55))return false;
+    return !q||[p.name,p.id,p.dept].some(v=>String(v||'').toLowerCase().includes(q));
+  });
+  E('patCount').textContent=`${D.patients.length} patient${D.patients.length===1?'':'s'} on this device. Select a row to open the record.`;
+  E('patBody').innerHTML=rows.length?rows.map(p=>{const n=flagsOf(p).length;return `<tr data-id="${esc(p.id)}"><td><strong>${esc(p.name)}</strong>${p.sample?'<span class="sample-tag">Sample</span>':''}<small>${esc(p.id)}</small></td><td>${p.age==null?'':p.age+', '}${p.sex}</td><td>${esc(p.dept||'')}</td><td>${p.wt&&p.ht?`${p.wt} kg, ${p.ht} cm`:'<span class="mini-note">Not recorded</span>'}</td><td>${pregPill(p)}</td><td class="num">${fmt(p.twelve)} mSv</td><td class="num">${fmt(p.five)} mSv</td><td class="num">${n?`<span class="pill sev-${topSev(p)}">${n}</span>`:'\u2013'}</td></tr>`}).join(''):`<tr><td colspan="8" class="empty">${D.patients.length?'No patients match. Clear the search or choose All.':'No patients yet. Use Add patient to complete the intake questionnaire for the first one.'}</td></tr>`;
+}
+E('patFilters').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.pf=b.dataset.f;document.querySelectorAll('#patFilters .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderPatients()});
+E('patBody').addEventListener('click',e=>{const r=e.target.closest('tr[data-id]');if(r)openPatientView(r.dataset.id)});
+
+/* ----- intake questionnaire ----- */
+let editingPid=null;
+const nextPid=()=>{const n=D.patients.map(p=>+(/^P-(\d+)$/.exec(p.id)||[0,0])[1]);return 'P-'+(Math.max(10000,...n)+1)};
+buildPick('pPreg',[['no','Not pregnant'],['possible','Possibly pregnant'],['yes','Pregnant'],['unscreened','Not screened yet']],'radio');
+E('pDept').innerHTML='<option value="">Choose</option>'+DEPTS.map(d=>`<option>${d}</option>`).join('');
+function patFormUpdate(){
+  const age=ageFromDob(E('pDob').value), womanAge=E('pSex').value==='F'&&age!=null&&age>=12&&age<=55;
+  E('pPregWrap').hidden=!womanAge;
+  const wt=+E('pWt').value, ht=+E('pHt').value;
+  const est=sizeEst({age,wt,ht});
+  E('pSizeEst').textContent=wt&&ht?`BMI ${fmt(wt/Math.pow(ht/100,2))}. Estimated body size for the dose predictor: ${est} cm.`:(age!=null&&age<16?`Estimated body size for the dose predictor: ${est} cm (from age).`:'Add weight and height to estimate body size for the dose predictor.');
+}
+['pDob','pSex','pWt','pHt'].forEach(id=>E(id).addEventListener('input',patFormUpdate));
+function openPatientForm(id){
+  editingPid=id||null; const p=id?D.byId[id]:null, prof=session.profile||{};
+  E('patTitle').textContent=p?'Edit patient':'Add patient';E('patSave').textContent=p?'Save changes':'Save patient';
+  E('pName').value=p?p.name:'';E('pId').value=p?p.id:nextPid();E('pId').readOnly=!!p;
+  E('pDob').value=p?p.dob:'';E('pDob').max=ymd(TODAY);E('pSex').value=p?p.sex:'';
+  E('pDept').value=p?p.dept:(prof.pop==='paeds'?'Paediatrics':'');
+  E('pWt').value=p&&p.wt?p.wt:'';E('pHt').value=p&&p.ht?p.ht:'';
+  setPick('pPreg',p&&p.preg&&p.preg!=='na'?p.preg:'');
+  E('pInd').value=p?p.ind||'':'';E('pPrior').value=p?p.prior||'':'';
+  E('pRt').checked=!!(p&&p.rt);E('pOcc').checked=!!(p&&p.occ);E('pFol').checked=!!(p&&p.fol);E('pConsent').checked=!!(p&&p.consent);
+  E('err-pat').textContent='';patFormUpdate();
+  if(E('pvDlg').open)E('pvDlg').close();
+  E('patDlg').showModal();
+}
+E('patForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const err=E('err-pat'); err.textContent='';
+  const name=E('pName').value.trim(), id=E('pId').value.trim(), dob=E('pDob').value, sex=E('pSex').value, dept=E('pDept').value;
+  const wt=E('pWt').value?+E('pWt').value:null, ht=E('pHt').value?+E('pHt').value:null, age=ageFromDob(dob);
+  const womanAge=sex==='F'&&age!=null&&age>=12&&age<=55, preg=getPick('pPreg');
+  if(name.length<2)return void(err.textContent='Enter the patient\'s full name.');
+  if(!/^[A-Za-z0-9\-_/]{3,20}$/.test(id))return void(err.textContent='Patient ID should be 3 to 20 letters, numbers or dashes.');
+  if(!editingPid&&D.byId[id])return void(err.textContent='A patient with this ID already exists.');
+  if(!dob||age==null||age<0||age>120||Date.parse(dob)>TODAY)return void(err.textContent='Enter a valid date of birth that is not in the future.');
+  if(!sex)return void(err.textContent='Choose the patient\'s sex.');
+  if(!dept)return void(err.textContent='Choose the referring department.');
+  if(wt!=null&&(wt<2||wt>300))return void(err.textContent='Weight should be between 2 and 300 kg.');
+  if(ht!=null&&(ht<40||ht>230))return void(err.textContent='Height should be between 40 and 230 cm.');
+  if(womanAge&&!preg)return void(err.textContent='Record the pregnancy status before imaging.');
+  if(!E('pPrior').value)return void(err.textContent='Say how many scans or X-rays the patient had elsewhere.');
+  if(!E('pConsent').checked)return void(err.textContent='Confirm the patient has been told how dose details are recorded.');
+  const old=editingPid?D.byId[editingPid]:null;
+  const p={id,name,dob,sex,wt,ht,preg:womanAge?preg:'na',dept,ind:E('pInd').value.trim(),prior:E('pPrior').value,rt:E('pRt').checked,occ:E('pOcc').checked,fol:E('pFol').checked,consent:true,created:old?old.created:Date.now(),by:old?old.by:session.name,sample:old?old.sample:undefined};
+  try{
+    await putPatient(p);
+    const i=D.patients.findIndex(x=>x.id===id); i<0?D.patients.push(p):D.patients[i]=p;
+  }catch(x){err.textContent='The patient could not be saved. Check your connection and try again.';return}
+  E('patDlg').close(); if(!state.sel||!old)state.sel=id;
+  refresh(); toast(old?'Patient updated':'Patient added. Log their first exam when ready.');
+});
+
+/* ----- patient record dialog ----- */
+function openPatientView(id){
+  const p=D.byId[id]; if(!p)return;
+  const f=flagsOf(p), age=p.age==null?'':p.age+' years, ';
+  E('pvBody').innerHTML=`
+   <div class="ph"><div><h2 id="pvTitle">${esc(p.name)}${p.sample?'<span class="sample-tag">Sample</span>':''}</h2><p>${age}${p.sex==='F'?'female':'male'}, ${esc(p.id)}</p></div><button class="iconbtn" data-close="pvDlg" aria-label="Close">&times;</button></div>
+   <div class="kv">
+     <div><span>Department</span><b>${esc(p.dept||'\u2013')}</b></div>
+     <div><span>Reason for imaging</span><b>${esc(p.ind||'\u2013')}</b></div>
+     <div><span>Weight, height</span><b>${p.wt&&p.ht?`${p.wt} kg, ${p.ht} cm`:'Not recorded'}</b></div>
+     <div><span>BMI, estimated size</span><b>${p.bmi?fmt(p.bmi)+', '+p.wed+' cm':(p.wed?p.wed+' cm':'\u2013')}</b></div>
+     <div><span>Pregnancy status</span><b>${PREG[p.preg||'na']}</b></div>
+     <div><span>Scans elsewhere, 5 years</span><b>${{'0':'None','1-2':'1 to 2','3-5':'3 to 5','6+':'6 or more',unknown:'Not known'}[p.prior]||'\u2013'}</b></div>
+     <div><span>Last 12 months</span><b>${fmt(p.twelve)} mSv</b></div>
+     <div><span>Last 5 years</span><b>${fmt(p.five)} mSv (${Math.round(p.five/REVIEW*100)}% of review level)</b></div>
+   </div>
+   <div class="tags">${p.rt?'<span class="tag">Previous radiotherapy</span>':''}${p.occ?'<span class="tag">Works with radiation</span>':''}${p.fol?'<span class="tag">Follow-up imaging expected</span>':''}<span class="tag">Added ${dateTxt(p.created)}${p.by?' by '+esc(p.by):''}</span></div>
+   <h3 class="sub">Open flags</h3>
+   ${f.length?f.map(x=>`<p style="margin:0 0 8px"><span class="pill sev-${x.sev}">${SEVLAB[x.sev]}</span> ${esc(x.t)}</p>`).join(''):'<p class="mini-note">No open flags.</p>'}
+   <h3 class="sub">Recent exams</h3>
+   ${p.e.length?`<div class="tablewrap" style="max-height:200px"><table><tbody>${p.e.slice(-6).reverse().map(e=>`<tr data-x="${e.id}" style="cursor:pointer"><td>${dateTxt(e.t)}</td><td>${esc(e.s.name)}</td><td class="num">${fmt(e.eff)} mSv</td></tr>`).join('')}</tbody></table></div>`:'<p class="mini-note">No exams logged yet.</p>'}
+   <div class="actions"><button class="btn danger grow" id="pvDel" ${gate('deletePatient')}>Delete patient</button><button class="btn" id="pvHist">Dose history</button><button class="btn" id="pvEdit" ${gate('addPatient')}>Edit</button><button class="btn primary" id="pvLog" ${gate('logExam')}>Log exam</button></div>`;
+  E('pvDlg').showModal();
+  E('pvHist').onclick=()=>{E('pvDlg').close();state.sel=id;go('Overview')};
+  E('pvEdit').onclick=()=>openPatientForm(id);
+  E('pvLog').onclick=()=>{E('pvDlg').close();openExamForm(id)};
+  E('pvDel').onclick=async function(){
+    if(!can('deletePatient'))return;
+    if(!this.dataset.armed){this.dataset.armed='1';this.classList.add('armed');this.textContent=`Confirm delete (${p.e.length} exams)`;setTimeout(()=>{if(this.isConnected){this.dataset.armed='';this.classList.remove('armed');this.textContent='Delete patient'}},3500);return}
+    for(const x of D.exams.filter(x=>x.pid===id))await DB.del('exams',x.id);
+    D.exams=D.exams.filter(x=>x.pid!==id);await DB.del('patients',id);D.patients=D.patients.filter(x=>x.id!==id);
+    if(state.sel===id){prep();const o=orderedPatients();state.sel=o.length?o[0].id:null}
+    E('pvDlg').close();refresh();toast('Patient deleted');
+  };
+}
+E('pvBody').addEventListener('click',e=>{const r=e.target.closest('tr[data-x]');if(r){E('pvDlg').close();openExamView(r.dataset.x)}});
+
+/* =====================================================
+   EXAMS
+   ===================================================== */
+E('exMod').innerHTML='<option value="">All modalities</option>'+MODS.map(m=>`<option>${m}</option>`).join('');
+function renderExams(){
+  const w=win(), q=state.q.trim().toLowerCase();
+  const rows=D.ex.filter(x=>{
+    if(state.period&&!inWin(x,w.a,w.b))return false;
+    if(state.ef==='over'&&!(x.r>1))return false;
+    if(state.ef==='out'&&!(x.r>1.3))return false;
+    if(state.emod&&x.s.mod!==state.emod)return false;
+    return !q||[x.p.name,x.p.id,x.s.name].some(v=>v.toLowerCase().includes(q));
+  });
+  E('exCount').textContent=`${rows.length} exam${rows.length===1?'':'s'} in ${periodLabel()}. Select a row for details.`;
+  E('exBody').innerHTML=rows.length?rows.map(x=>{const b=band(x.r);return `<tr data-x="${x.id}"><td>${dateTxt(x.t)}</td><td><strong>${esc(x.p.name)}</strong><small>${esc(x.p.id)}</small></td><td>${esc(x.s.name)}</td><td class="num">${x.s.label} ${fmt(x.val,x.s.dec)} ${x.s.unit}</td><td class="num">${fmt(x.eff)} mSv</td><td><span class="pill ${b.c}">${b.w} ${pct(x.r)}</span></td><td>${esc(x.by||'')}</td></tr>`}).join(''):`<tr><td colspan="7" class="empty">${D.ex.length?'No exams match these filters.':'No exams logged yet. Use Log exam to add the first one.'}</td></tr>`;
+}
+E('exFilters').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.ef=b.dataset.f;document.querySelectorAll('#exFilters .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderExams()});
+E('exMod').addEventListener('change',e=>{state.emod=e.target.value;renderExams()});
+E('exBody').addEventListener('click',e=>{const r=e.target.closest('tr[data-x]');if(r)openExamView(r.dataset.x)});
+
+/* ----- log exam ----- */
+let xDirty=false;
+function openExamForm(pid){
+  if(!D.patients.length){toast('Add a patient first');if(can('addPatient'))openPatientForm();return}
+  const prof=session.profile||{}, first=(prof.mods&&prof.mods[0])||'CT';
+  E('xPat').innerHTML=D.patients.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<option value="${esc(p.id)}">${esc(p.name)} (${esc(p.id)})</option>`).join('');
+  E('xPat').value=D.byId[pid]?pid:(D.byId[state.sel]?state.sel:D.patients[0].id);
+  E('xKey').innerHTML=MODS.map(m=>`<optgroup label="${m}">${Object.values(SPEC).filter(s=>s.mod===m).map(s=>`<option value="${s.key}">${esc(s.name)}</option>`).join('')}</optgroup>`).join('');
+  const def=Object.values(SPEC).find(s=>s.mod===first);E('xKey').value=def?def.key:'CT_CHEST';
+  E('xDate').value=ymd(TODAY);E('xDate').max=ymd(TODAY);E('xNote').value='';E('err-ex').textContent='';
+  xDirty=false;xKeyChanged();
+  if(E('pvDlg').open)E('pvDlg').close();
+  E('exDlg').showModal();
+}
+function xKeyChanged(){
+  const s=SPEC[E('xKey').value];E('xValLbl').textContent=`${s.label} (${s.unit})`;
+  if(!xDirty)E('xVal').value=drlOf(s.key);
+  xPreview();
+}
+function xPreview(){
+  const s=SPEC[E('xKey').value], p=D.byId[E('xPat').value], v=+E('xVal').value;
+  if(!p||!(v>0)){E('xPreview').innerHTML='';return}
+  const eff=v*s.conv, r=v/drlOf(s.key), b=band(r), womanAge=p.sex==='F'&&p.age>=12&&p.age<=55;
+  let html=`<div class="inline-info">Effective dose about <b>${fmt(eff)} mSv</b>, <span class="pill ${b.c}">${b.w} ${pct(r)}</span> against the reference level. Five-year total for ${esc(p.name)} would be <b>${fmt(p.five+eff)} mSv</b> (review level ${fmt(REVIEW,0)}).</div>`;
+  if(womanAge&&PELVIC.includes(s.key)&&(p.preg==='unscreened'||p.preg==='possible'||p.preg==='yes'))html+=`<div class="inline-warn bad">${p.preg==='unscreened'?'Pregnancy status is not recorded for this patient. Update the patient record before this scan.':p.preg==='yes'?'This patient is recorded as pregnant. Confirm the pelvic exam is justified.':'Pregnancy is recorded as possible. Confirm before scanning the pelvis.'}</div>`;
+  if(p.age!=null&&p.age<16&&!['CT_PHEAD','XR_CHEST'].includes(s.key)&&s.mod==='CT'&&s.key!=='CT_PHEAD')html+=`<div class="inline-warn">This patient is under 16. Check that a paediatric protocol is used.</div>`;
+  E('xPreview').innerHTML=html;
+}
+E('xKey').addEventListener('change',()=>{xDirty=false;xKeyChanged()});
+E('xVal').addEventListener('input',()=>{xDirty=true;xPreview()});
+E('xPat').addEventListener('change',xPreview);
+E('exForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const err=E('err-ex'); err.textContent='';
+  const pid=E('xPat').value, key=E('xKey').value, d=E('xDate').value, val=+E('xVal').value, t=Date.parse(d+'T00:00:00Z');
+  if(!D.byId[pid])return void(err.textContent='Choose a patient.');
+  if(!d||isNaN(t)||t>TODAY+DAY||t<Date.UTC(1990,0,1))return void(err.textContent='Enter a valid exam date that is not in the future.');
+  if(!(val>0))return void(err.textContent=`Enter the ${SPEC[key].label} shown on the dose report.`);
+  const x={id:'x'+uid(),pid,key,t,val,note:E('xNote').value.trim(),by:session.name,at:Date.now()};
+  try{await putExam(x);D.exams.push(x)}catch(ex){err.textContent='The exam could not be saved. Check your connection and try again.';return}
+  E('exDlg').close();
+  const before=new Set(openFlags().map(f=>f.key)); prep();
+  const raised=D.flags.filter(f=>f.x===D.ex.find(y=>y.id===x.id)&&isOpen(f)).length;
+  state.sel=pid; renderRoute();
+  toast(raised?`Exam saved. ${raised} new flag${raised===1?'':'s'} raised.`:'Exam saved');
+});
+
+/* ----- exam record dialog ----- */
+function openExamView(id){
+  const x=D.ex.find(e=>e.id===id); if(!x)return;
+  const b=band(x.r), f=D.flags.filter(f=>f.x===x&&isOpen(f));
+  E('evBody').innerHTML=`
+   <div class="ph"><div><h2 id="evTitle">${esc(x.s.name)}</h2><p>${dateTxt(x.t)} for ${esc(x.p.name)} (${esc(x.p.id)})</p></div><button class="iconbtn" data-close="evDlg" aria-label="Close">&times;</button></div>
+   <div class="kv">
+     <div><span>${x.s.label}</span><b>${fmt(x.val,x.s.dec)} ${x.s.unit}</b></div>
+     <div><span>Reference level</span><b>${fmt(drlOf(x.key),x.s.dec)} ${x.s.unit}</b></div>
+     <div><span>Against DRL</span><b><span class="pill ${b.c}">${b.w} ${pct(x.r)}</span></b></div>
+     <div><span>Effective dose</span><b>${fmt(x.eff)} mSv</b></div>
+     <div><span>Modality</span><b>${x.s.mod}</b></div>
+     <div><span>Logged by</span><b>${esc(x.by||'\u2013')}</b></div>
+   </div>
+   ${x.note?`<p class="mini-note" style="margin-top:12px">Note: ${esc(x.note)}</p>`:''}
+   <h3 class="sub">Flags on this exam</h3>
+   ${f.length?f.map(y=>`<p style="margin:0 0 8px"><span class="pill sev-${y.sev}">${SEVLAB[y.sev]}</span> ${esc(y.t)}</p>`).join(''):'<p class="mini-note">No open flags on this exam.</p>'}
+   <div class="actions"><button class="btn danger grow" id="evDel" ${gate('logExam')}>Delete exam</button><button class="btn" id="evPat">View patient</button><button class="btn primary" data-close="evDlg">Close</button></div>`;
+  E('evDlg').showModal();
+  E('evPat').onclick=()=>{E('evDlg').close();openPatientView(x.pid)};
+  E('evDel').onclick=async function(){
+    if(!can('logExam'))return;
+    if(!this.dataset.armed){this.dataset.armed='1';this.classList.add('armed');this.textContent='Confirm delete';setTimeout(()=>{if(this.isConnected){this.dataset.armed='';this.classList.remove('armed');this.textContent='Delete exam'}},3500);return}
+    await DB.del('exams',id);D.exams=D.exams.filter(e=>e.id!==id);E('evDlg').close();refresh();toast('Exam deleted');
+  };
+}
+
+/* =====================================================
+   PROTOCOLS
+   ===================================================== */
+function renderProtocols(){
+  const prof=session.profile||{}, mine=prof.mods||[], w=win();
+  E('drlNote').textContent={national:'You compare against national DRLs. Enter the values your country publishes. The starting values are illustrative.',local:'You compare against local DRLs set by your physicist. Enter your own values below. The starting values are illustrative.',none:'No reference source chosen yet. The starting values are illustrative, so replace them with published DRLs.'}[prof.drl]||'The starting values are illustrative. Replace them with published DRLs.';
+  const specs=Object.values(SPEC).sort((a,b)=>(mine.includes(b.mod)?1:0)-(mine.includes(a.mod)?1:0)||MODS.indexOf(a.mod)-MODS.indexOf(b.mod));
+  E('drlBody').innerHTML=specs.map(s=>{
+    const ex=D.ex.filter(x=>x.key===s.key&&(!state.period||inWin(x,w.a,w.b))), med=median(ex.map(x=>x.r)), ov=ex.filter(x=>x.r>1).length, out=ex.filter(x=>x.r>1.3).length, ed=D.meta.drl[s.key]!=null;
+    const input=can('editDRL')?`<input class="drlin" type="number" step="any" min="0" data-k="${s.key}" value="${drlOf(s.key)}" aria-label="Reference level for ${esc(s.name)}"> <small>${s.unit}</small>`:`${fmt(drlOf(s.key),s.dec)} <small>${s.unit}</small>`;
+    return `<tr><td><strong>${esc(s.name)}</strong><small>${s.label}</small></td><td>${s.mod}${mine.includes(s.mod)?'<span class="sample-tag">Yours</span>':''}</td><td class="num">${input}</td><td class="num">${fmt(s.conv,4)}</td><td class="num">${ex.length}</td><td class="num">${med==null?'\u2013':`<span class="pill ${band(med).c}">${pct(med)}</span>`}</td><td class="num">${ex.length?fmt(ov/ex.length*100,0)+'%':'\u2013'}</td><td class="num">${out?`<span class="pill high">${out}</span>`:(ex.length?'0':'\u2013')}</td><td>${ed&&can('editDRL')?`<button class="btn sm" data-reset="${s.key}">Reset</button>`:''}</td></tr>`}).join('');
+  E('drlHint').innerHTML=`Exam counts cover ${periodLabel()}. ${can('editDRL')?'Change a reference level and every exam is re-scored against it straight away.':'Only physicists, radiation safety officers and administrators can change reference levels.'} "mSv per unit" converts the dose index to effective dose and is fixed.`;
+}
+E('drlBody').addEventListener('change',async e=>{
+  const i=e.target.closest('.drlin');if(!i||!can('editDRL'))return;
+  const v=+i.value,k=i.dataset.k;
+  if(!(v>0)){toast('Enter a reference level above zero');renderProtocols();return}
+  if(v===SPEC[k].idx)delete D.meta.drl[k];else D.meta.drl[k]=v;
+  await saveMeta();toast('Reference level updated for '+SPEC[k].name);refresh();
+});
+E('drlBody').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-reset]');if(!b||!can('editDRL'))return;
+  delete D.meta.drl[b.dataset.reset];await saveMeta();toast('Reference level reset');refresh();
+});
+
+/* =====================================================
+   AI FLAGS
+   ===================================================== */
+function renderFlags(){
+  const q=state.q.trim().toLowerCase(), showDis=state.ff==='dismissed';
+  const base=D.flags.filter(f=>showDis?!isOpen(f):isOpen(f));
+  const rows=base.filter(f=>(showDis||state.ff==='all'||f.sev===state.ff)&&(!q||f.p.name.toLowerCase().includes(q)||f.t.toLowerCase().includes(q))).sort((a,b)=>RANK[b.sev]-RANK[a.sev]);
+  const open=openFlags(), hi=open.filter(f=>f.sev==='high').length;
+  E('flagCount').textContent=`${open.length} open, ${hi} high priority. ${D.flags.length-open.length} dismissed.`;
+  E('flagList').innerHTML=rows.length?rows.map(f=>{const nt=D.meta.notified[f.key], ds=D.meta.dismissed[f.key];return `
+   <article class="find" data-k="${esc(f.key)}"><span class="pill sev-${f.sev}">${SEVLAB[f.sev]}</span>
+    <div><h4>${esc(f.t)}</h4><p><button class="link" data-a="patient">${esc(f.p.name)}</button> (${esc(f.p.id)}). ${esc(f.d)}</p>
+    <div class="meta">Rule: ${esc(f.why)}${nt?` · Radiologist notified ${dateTxt(nt.at)}`:''}${ds?` · Dismissed ${dateTxt(ds.at)} by ${esc(ds.by)}`:''}</div>
+    <div class="acts">${ds?`<button class="btn" data-a="restore" ${gate('dismiss')}>Restore</button>`:`<button class="btn primary" data-a="notify" ${gate('notify')}>${nt?'Notify again':'Notify radiologist'}</button>`}${f.x?'<button class="btn" data-a="open">Open exam</button>':''}${ds?'':`<button class="btn" data-a="dismiss" ${gate('dismiss')}>Dismiss</button>`}</div></div></article>`}).join(''):`<p class="empty">${showDis?'No dismissed flags.':(D.flags.length?'No open flags match. Clear the search or choose All.':'No flags yet. Flags appear when patient or exam data trips a rule.')}</p>`;
+}
+E('flagFilters').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.ff=b.dataset.f;document.querySelectorAll('#flagFilters .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderFlags()});
+E('flagList').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-a]');if(!b)return;
+  const f=D.flags.find(x=>x.key===b.closest('.find').dataset.k);if(f)await flagAction(b.dataset.a,f);
+});
+
+/* =====================================================
+   REPORTS
+   ===================================================== */
+function buildReport(type){
+  const w=win(), ex=D.ex.filter(x=>!state.period||inWin(x,w.a,w.b)), pl=periodLabel();
+  if(type==='summary'){
+    const over=ex.filter(x=>x.r>1).length, out=ex.filter(x=>x.r>1.3).length, fl=openFlags();
+    const rows=Object.values(SPEC).map(s=>{const a=ex.filter(x=>x.key===s.key);const m=median(a.map(x=>x.r));return a.length?[s.name,s.mod,a.length,+a.reduce((t,x)=>t+x.eff,0).toFixed(1),m==null?'':pct(m),Math.round(a.filter(x=>x.r>1).length/a.length*100)+'%']:null}).filter(Boolean);
+    return{title:'Department summary',cards:[['Exams',ex.length],['Patients seen',new Set(ex.map(x=>x.pid)).size],['Above DRL',ex.length?Math.round(over/ex.length*100)+'%':'\u2013'],['More than 30% over',out],['Open flags',fl.length],['Patients over review level',D.patients.filter(p=>p.five>=REVIEW).length]],cols:['Protocol','Modality','Exams','Total effective dose (mSv)','Median vs DRL','Above DRL'],rows,num:[2,3,4,5]};
+  }
+  if(type==='cumulative'){
+    const rows=D.patients.slice().sort((a,b)=>b.five-a.five).map(p=>[p.id,p.name,p.age==null?'':p.age,p.sex,+p.twelve.toFixed(1),+p.five.toFixed(1),Math.round(p.five/REVIEW*100)+'%',p.e.length]);
+    return{title:'Cumulative dose by patient',cards:[['Patients',D.patients.length],['Review level',fmt(REVIEW,0)+' mSv'],['At or over review level',D.patients.filter(p=>p.five>=REVIEW).length]],cols:['Patient ID','Name','Age','Sex','12 months (mSv)','5 years (mSv)','Of review level','Exams'],rows,num:[2,4,5,6,7]};
+  }
+  if(type==='over'){
+    const a=ex.filter(x=>x.r>1.3);
+    return{title:'Exams more than 30% over DRL',cards:[['Exams listed',a.length],['Of all exams',ex.length?Math.round(a.length/ex.length*100)+'%':'\u2013']],cols:['Date','Patient ID','Patient','Exam','Dose index','Against DRL','Logged by'],rows:a.map(x=>[ymd(x.t),x.p.id,x.p.name,x.s.name,`${fmt(x.val,x.s.dec)} ${x.s.unit}`,pct(x.r),x.by||'']),num:[]};
+  }
+  if(type==='flags'){
+    const a=openFlags().sort((x,y)=>RANK[y.sev]-RANK[x.sev]);
+    return{title:'Open flags',cards:[['Open flags',a.length],['High priority',a.filter(f=>f.sev==='high').length]],cols:['Priority','Patient ID','Patient','Flag','Detail','Radiologist notified'],rows:a.map(f=>[SEVLAB[f.sev],f.p.id,f.p.name,f.t,f.d,D.meta.notified[f.key]?ymd(D.meta.notified[f.key].at):'No']),num:[]};
+  }
+  const a=D.meta.referrals.slice().sort((x,y)=>y.at-x.at);
+  return{title:'Physics referrals log',cards:[['Referrals',a.length],['Exams referred',a.reduce((t,r)=>t+r.n,0)]],cols:['Date','Sent by','Protocol','Exams sent'],rows:a.map(r=>[ymd(r.at),r.by,r.protocol,r.n]),num:[3]};
+}
+let lastReport=null;
+function renderReports(){
+  E('rpType').value=state.rp;
+  const r=lastReport=buildReport(state.rp), prof=session.profile||{};
+  const showPeriod=['summary','over'].includes(state.rp);
+  E('rpHead').innerHTML=`<h2 style="font-family:var(--display);font-size:24px;margin:0">${esc(prof.facility||'Dose Tracker')}: ${r.title}</h2><p class="mini-note">${showPeriod?'Period: '+periodLabel()+'. ':''}Generated ${dateTxt(Date.now())} by ${esc(session.name)}.</p>`;
+  E('rpOut').innerHTML=`${showPeriod?'':'<p class="mini-note noprint" style="margin-bottom:10px">This report covers all records, not just the period above.</p>'}<div class="cards">${r.cards.map(c=>`<div class="c"><span>${c[0]}</span><b>${esc(c[1])}</b></div>`).join('')}</div>
+   <div class="tablewrap tall"><table><thead><tr>${r.cols.map((c,i)=>`<th class="${r.num.includes(i)?'num':''}">${c}</th>`).join('')}</tr></thead><tbody>
+   ${r.rows.length?r.rows.map(row=>`<tr>${row.map((v,i)=>`<td class="${r.num.includes(i)?'num':''} ${String(v).length>60?'wrap':''}">${esc(v)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${r.cols.length}" class="empty">Nothing to report yet.</td></tr>`}
+   </tbody></table></div>
+   <div class="printhead" style="margin-top:30px"><p>Reviewed by: ______________________ &nbsp; Signature: ______________________ &nbsp; Date: ______________</p><p class="mini-note" style="margin-top:8px">Dose estimates and AI flags use illustrative rules, not clinical guidance.</p></div>`;
+  gateEl(E('rpCsv'),'exportReport');gateEl(E('rpXlsx'),'exportReport');
+}
+E('rpType').addEventListener('change',e=>{state.rp=e.target.value;renderReports()});
+E('rpCsv').addEventListener('click',()=>{
+  if(!can('exportReport')||!lastReport)return;
+  if(!lastReport.rows.length){toast('Nothing to export yet');return}
+  saveFile(`dose-tracker-${state.rp}-${ymd(TODAY)}.csv`,toCsv([lastReport.cols,...lastReport.rows]),'text/csv');
+});
+function reportSheet(r){
+  const prof=session.profile||{}, showPeriod=['summary','over'].includes(state.rp);
+  const a=[[`${prof.facility||'Dose Tracker'}: ${r.title}`],[showPeriod?'Period: '+periodLabel():'Period: all records'],
+    [`Generated ${dateTxt(Date.now())} by ${session.name} (${ROLES[session.role].name})`],[]];
+  r.cards.forEach(c=>a.push([c[0],c[1]]));
+  a.push([]); const hr=a.length; a.push(r.cols); r.rows.forEach(x=>a.push(x));
+  a.push([],['Dose estimates and AI flags use illustrative rules, not clinical guidance.'],['Reviewed by: ____________________   Signature: ____________________   Date: ____________']);
+  const ws=XLSX.utils.aoa_to_sheet(a);
+  ws['!cols']=r.cols.map((c,i)=>({wch:Math.min(60,Math.max(12,String(c).length+2,...r.rows.map(x=>String(x[i]==null?'':x[i]).length+2),i===0?Math.max(...r.cards.map(k=>String(k[0]).length+2)):0))}));
+  ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:hr,c:0},e:{r:hr+r.rows.length,c:r.cols.length-1}})};
+  return ws;
+}
+E('rpXlsx').addEventListener('click',()=>{
+  if(!can('exportReport')||!lastReport)return;
+  if(!lastReport.rows.length){toast('Nothing to export yet');return}
+  if(!window.XLSX){toast('Excel export could not load. Use Export CSV instead.');return}
+  try{
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,reportSheet(lastReport),lastReport.title.replace(/[\\\/?*\[\]:]/g,'').slice(0,31));
+    const out=XLSX.write(wb,{bookType:'xlsx',type:'array'});
+    saveFile(`dose-tracker-${state.rp}-${ymd(TODAY)}.xlsx`,new Uint8Array(out),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  }catch(x){toast('The Excel file could not be created.')}
+});
+E('rpPrint').addEventListener('click',()=>{try{window.print()}catch(e){toast('Printing is not available here. Download the Excel file instead.')}});
+
+/* =====================================================
+   SETTINGS
+   ===================================================== */
+function renderSettings(){
+  const p=session.profile||{}, n=D.patients.filter(x=>x.sample).length;
+  E('onbSummary').innerHTML=`<div class="kv">
+    <div><span>Facility</span><b>${esc(p.facility||'')}</b></div><div><span>Department</span><b>${esc(p.dept||'')}</b></div>
+    <div><span>Modalities</span><b>${esc((p.mods||[]).join(', '))}</b></div><div><span>Patients</span><b>${LAB('pop',p.pop)}</b></div>
+    <div><span>Reference levels</span><b>${LAB('drl',p.drl)}</b></div><div><span>Review level</span><b>${fmt(p.rev||100,0)} mSv</b></div>
+    <div><span>Pregnancy check</span><b>${LAB('preg',p.preg)}</b></div><div><span>Weight and height</span><b>${LAB('size',p.size)}</b></div>
+    <div><span>Earlier imaging from</span><b>${LAB('prior',p.prior)}</b></div></div>
+    <p class="note">Facility name, review level and your first modality are used across the app. The other answers are kept with your account.</p>`;
+  E('acctLine').textContent=`${session.name}, ${session.email}, ${ROLES[session.role].name}`;
+  usersCount().then(n=>{E('dataLine').textContent=`${D.patients.length} patients, ${D.ex.length} exams and ${n} of ${MAX_USERS} accounts, saved on the server.`});
+  E('bkNote').textContent=can('backup')?'Backups hold patient records and settings only, not accounts or passwords. Keep the file private.':'Only administrators can back up or restore data.';
+  gateEl(E('bkExport'),'backup');gateEl(E('bkImportLbl'),'backup');gateEl(E('rmSample'),'deletePatient');
+  E('rmSample').hidden=!n;
+}
+E('editOnb').onclick=()=>openOnboarding(true);
+E('pwForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const err=E('err-pw'); err.textContent='';
+  const oldp=E('cpOld').value, np=E('cpNew').value;
+  if(!oldp)return void(err.textContent='Enter your current password.');
+  const r=pwOk(np); if(!(r.len&&r.let&&r.num))return void(err.textContent='Choose a password with 8 or more characters, including a letter and a number.');
+  if(np!==E('cpNew2').value)return void(err.textContent='The two new passwords do not match.');
+  E('goPw').disabled=true;
+  try{
+    await post('auth',{action:'password',oldPassword:oldp,newPassword:np});
+    ['cpOld','cpNew','cpNew2'].forEach(i=>E(i).value='');toast('Password changed');
+  }catch(x){err.textContent=x.status?x.message:netErr}
+  finally{E('goPw').disabled=false}
+});
+E('rmSample').addEventListener('click',async function(){
+  if(!can('deletePatient'))return;
+  if(!this.dataset.armed){this.dataset.armed='1';this.classList.add('armed');this.textContent='Confirm remove';setTimeout(()=>{if(this.isConnected){this.dataset.armed='';this.classList.remove('armed');this.textContent='Remove sample patients'}},3500);return}
+  const ids=new Set(D.patients.filter(p=>p.sample).map(p=>p.id));
+  for(const x of D.exams.filter(x=>ids.has(x.pid)))await DB.del('exams',x.id);
+  for(const id of ids)await DB.del('patients',id);
+  D.exams=D.exams.filter(x=>!ids.has(x.pid));D.patients=D.patients.filter(p=>!ids.has(p.id));
+  this.dataset.armed='';this.classList.remove('armed');this.textContent='Remove sample patients';
+  prep();if(!D.byId[state.sel]){const o=orderedPatients();state.sel=o.length?o[0].id:null}
+  renderRoute();toast('Sample patients removed');
+});
+E('bkExport').addEventListener('click',async()=>{
+  if(!can('backup'))return;
+  const b={format:'dose-tracker-backup',version:1,exported:new Date().toISOString(),users:[],patients:D.patients.map(p=>pick(p,PAT_KEYS)),exams:D.exams.map(x=>pick(x,EXAM_KEYS)),meta:D.meta};
+  saveFile(`dose-tracker-backup-${ymd(TODAY)}.json`,JSON.stringify(b,null,1),'application/json');
+});
+let pendingRestore=null;
+E('bkFile').addEventListener('change',async e=>{
+  const f=e.target.files[0]; e.target.value=''; if(!f||!can('backup'))return;
+  const note=E('bkNote');
+  try{
+    const b=JSON.parse(await f.text());
+    if(b.format!=='dose-tracker-backup'||!Array.isArray(b.users)||!Array.isArray(b.patients)||!Array.isArray(b.exams))throw 0;
+    if(!b.patients.every(p=>p&&p.id&&p.name&&p.dob&&p.sex)||!b.exams.every(x=>x&&x.id&&x.pid&&SPEC[x.key]&&typeof x.t==='number'&&typeof x.val==='number'))throw 3;
+    pendingRestore=b;
+    note.innerHTML=`This backup holds ${b.patients.length} patients and ${b.exams.length} exams. It replaces all patients and exams on the server. <button class="btn danger sm" id="bkGo" type="button">Replace current data</button>`;
+  }catch(x){pendingRestore=null;note.textContent=x===1?`A backup can hold at most ${MAX_USERS} accounts.`:'That file is not a valid Dose Tracker backup.'}
+});
+E('bkNote').addEventListener('click',async e=>{
+  const b=e.target.closest('#bkGo');if(!b||!pendingRestore)return;
+  if(!b.dataset.armed){b.dataset.armed='1';b.classList.add('armed');b.textContent='Confirm replace';return}
+  const r=pendingRestore;pendingRestore=null;
+  try{
+    for(const s of ['patients','exams','meta'])await DB.clear(s);
+    for(const p of r.patients)await putPatient(p);
+    for(const x of r.exams)await putExam(x);
+    await DB.put('meta',Object.assign({key:'app'},META0(),r.meta||{}));
+    await leave();toast('Backup restored. Sign in again.');
+  }catch(x){E('bkNote').textContent='The backup could not be restored. Check your connection and try again.'}
+});
+
+/* ---------- boot ---------- */
+(async()=>{
+  try{
+    const r=await api('auth');
+    if(r.user){await enter(r.user);return}
+    E('auth').hidden=false;setTab(r.count?'in':'up');
+  }catch(x){E('auth').hidden=false;setTab('in');E('err-in').textContent=netErr}
+})();
+</script>
+</body>
+</html>
