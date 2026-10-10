@@ -448,7 +448,7 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
         </section>
         <section class="panel" aria-labelledby="ou">
           <div class="ph">
-            <div><h2 id="ou">Protocol outliers</h2><p>Ringed dots are exams logged here. Faint dots are sample department data.</p></div>
+            <div><h2 id="ou">Protocol outliers</h2><p>Each dot is an exam in your records, plotted against estimated patient size.</p></div>
             <div class="chips" id="scChips">
               <button class="chip" data-p="chest" aria-pressed="true">CT chest</button>
               <button class="chip" data-p="ap" aria-pressed="false">CT abdomen, pelvis</button>
@@ -467,7 +467,7 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
       <section class="panel">
         <div class="ph">
           <div><h2>Patient records</h2><p id="patCount"></p></div>
-          <button class="btn primary" id="addPatientBtn" data-open="addPatient">Add patient</button>
+          <div class="acts" style="margin:0"><button class="btn impOpen" data-open="importData">Import data</button><button class="btn primary" id="addPatientBtn" data-open="addPatient">Add patient</button></div>
         </div>
         <div class="pagebar"><div class="chips" id="patFilters">
           <button class="chip" data-f="all" aria-pressed="true">All</button>
@@ -484,7 +484,7 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
       <section class="panel">
         <div class="ph">
           <div><h2>Exam log</h2><p id="exCount"></p></div>
-          <button class="btn primary" id="logExamBtn" data-open="logExam">Log exam</button>
+          <div class="acts" style="margin:0"><button class="btn impOpen" data-open="importData">Import data</button><button class="btn primary" id="logExamBtn" data-open="logExam">Log exam</button></div>
         </div>
         <div class="pagebar">
           <div class="chips" id="exFilters">
@@ -567,7 +567,8 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
         <div class="acts" style="margin-top:0">
           <button class="btn" id="bkExport">Back up everything (JSON)</button>
           <label class="btn" style="cursor:pointer" id="bkImportLbl">Restore from backup<input id="bkFile" type="file" accept=".json,application/json" hidden></label>
-          <button class="btn danger" id="rmSample">Remove sample patients</button>
+          <button class="btn impOpen" data-open="importData">Import data</button>
+          <button class="btn danger" id="rmSample" hidden>Remove sample patients</button>
         </div>
         <p class="note" id="bkNote"></p>
       </section>
@@ -743,6 +744,21 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
   <div class="dlg" id="evBody"></div>
 </dialog>
 
+
+<!-- Import dataset -->
+<dialog id="impDlg" class="narrow" aria-labelledby="impTitle">
+  <div class="dlg">
+    <div class="ph"><div><h2 id="impTitle">Import dataset</h2><p>Upload an Excel (.xlsx) or CSV file with patients, exams, or both.</p></div><button type="button" class="iconbtn" data-close="impDlg" aria-label="Close">&times;</button></div>
+    <p class="note" style="margin-top:0">Use the template so the column names match. Patients go on a sheet called <b>Patients</b>, exams on a sheet called <b>Exams</b>. A CSV file can hold one of them. Patients that already exist are left alone, and exams that are already saved are skipped, so a file can be uploaded again safely.</p>
+    <div class="acts" style="margin:0 0 14px"><button type="button" class="btn sm" id="impTpl">Download template (.xlsx)</button></div>
+    <div class="field"><label for="impFile">File</label><input id="impFile" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></div>
+    <div id="impOut" aria-live="polite"></div>
+    <div class="check" id="impConsentWrap" hidden><input type="checkbox" id="impConsent"><label for="impConsent">The patients in this file, or their guardians, have been told that dose details are recorded for safety tracking.</label></div>
+    <p class="err" id="err-imp" role="alert"></p>
+    <div class="actions"><button type="button" class="btn" data-close="impDlg">Cancel</button><button type="button" class="btn primary" id="impGo" disabled>Import</button></div>
+  </div>
+</dialog>
+
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script src="/xlsx.full.min.js"></script>
@@ -783,11 +799,11 @@ const SEVLAB={high:'High',medium:'Review',info:'Note'};
 
 /* ---------- roles and permissions ---------- */
 const ROLES={
- radiographer:{name:'Radiographer',hint:'Records exams, checks patient dose and notifies the radiologist.',can:['exportReport','notify','sendPhysics','addPatient','logExam']},
- radiologist:{name:'Radiologist',hint:'Reviews AI findings, then dismisses or escalates them.',can:['exportReport','notify','dismiss','sendPhysics','export','addPatient','logExam']},
- physicist:{name:'Medical physicist',hint:'Analyses protocol outliers, sets reference levels and checks them against DRLs.',can:['exportReport','dismiss','export','editDRL']},
- rso:{name:'Radiation safety officer',hint:'Audits dose, sets review levels and receives escalations.',can:['exportReport','notify','dismiss','sendPhysics','export','editDRL','addPatient','logExam','deletePatient']},
- admin:{name:'Administrator',hint:'Manages accounts, roles and backups. The first account on this system gets this role.',can:['exportReport','users','backup','export','notify','dismiss','sendPhysics','editDRL','addPatient','logExam','deletePatient']}
+ radiographer:{name:'Radiographer',hint:'Records exams, checks patient dose and notifies the radiologist.',can:['exportReport','notify','sendPhysics','addPatient','logExam','importData']},
+ radiologist:{name:'Radiologist',hint:'Reviews AI findings, then dismisses or escalates them.',can:['exportReport','notify','dismiss','sendPhysics','export','addPatient','logExam','importData']},
+ physicist:{name:'Medical physicist',hint:'Analyses protocol outliers, sets reference levels and checks them against DRLs.',can:['exportReport','dismiss','export','editDRL','importData']},
+ rso:{name:'Radiation safety officer',hint:'Audits dose, sets review levels and receives escalations.',can:['exportReport','notify','dismiss','sendPhysics','export','editDRL','addPatient','logExam','deletePatient','importData']},
+ admin:{name:'Administrator',hint:'Manages accounts, roles and backups. The first account on this system gets this role.',can:['exportReport','users','backup','export','notify','dismiss','sendPhysics','editDRL','addPatient','logExam','deletePatient','importData']}
 };
 let session=null;
 const can=a=>!!session&&ROLES[session.role].can.includes(a);
@@ -822,7 +838,7 @@ const putExam=x=>DB.put('exams',pick(x,EXAM_KEYS));
 
 /* ---------- app data in memory ---------- */
 const D={patients:[],exams:[],ex:[],flags:[],byId:{},meta:{}};
-const META0=()=>({drl:{},alert:{},dismissed:{},notified:{},referrals:[],seeded:false});
+const META0=()=>({drl:{},alert:{},dismissed:{},notified:{},referrals:[]});
 D.meta=META0();
 const saveMeta=()=>DB.put('meta',Object.assign({key:'app'},D.meta));
 async function loadAll(){
@@ -925,33 +941,6 @@ const flagsOf=p=>D.flags.filter(f=>f.p===p&&isOpen(f)).sort((a,b)=>RANK[b.sev]-R
 const topSev=p=>{const f=flagsOf(p);return f.length?f[0].sev:null};
 const openFlags=()=>D.flags.filter(isOpen);
 
-/* ---------- sample patients (first run only) ---------- */
-const SEED=[
- {id:'P-20418',name:'Adaeze Okoro',age:58,sex:'F',dept:'Oncology follow-up',wt:71,ht:163,preg:'na',ind:'Oncology follow-up imaging',prior:'3-5',rt:true,fol:true,
-  ex:[['2022-03-14','CT_CHEST',1.05],['2022-11-02','CT_CAP',.98],['2023-05-19','CT_CAP',1.02],['2023-12-07','PET',1.0],['2024-06-21','CT_CAP',1.10],['2025-02-11','CT_CHEST',.95],['2025-11-05','CT_CAP',1.04],['2026-05-20','CT_CAP',1.12],['2026-09-23','CT_CHEST',1.31]]},
- {id:'P-17702',name:'Emeka Obi',age:71,sex:'M',dept:'Cardiology',wt:82,ht:172,preg:'na',ind:'Coronary intervention',prior:'1-2',rt:false,fol:true,
-  ex:[['2023-04-10','FLUORO',1.05],['2024-01-22','CT_CHEST',.9],['2025-08-14','FLUORO',1.4],['2026-02-03','CT_HEAD',1.0],['2026-08-29','FLUORO',1.6]]},
- {id:'P-31955',name:'Chinedu Nwosu',age:9,sex:'M',dept:'Paediatrics',wt:28,ht:130,preg:'na',ind:'Head injury follow-up',prior:'0',rt:false,fol:false,
-  ex:[['2025-12-02','XR_CHEST',.9],['2026-03-18','CT_PHEAD',1.0],['2026-09-27','CT_PHEAD',2.1]]},
- {id:'P-24861',name:'Ifeoma Eze',age:67,sex:'F',dept:'Surgery',wt:69,ht:158,preg:'na',ind:'Post-surgical review',prior:'1-2',rt:false,fol:true,
-  ex:[['2024-03-09','MAMMO',1.0],['2025-03-15','MAMMO',1.0],['2025-12-12','CT_AP',1.0],['2026-01-08','CT_AP',1.04],['2026-03-04','PET',1.0]]},
- {id:'P-40127',name:'Halima Sani',age:36,sex:'F',dept:'Emergency',wt:64,ht:165,preg:'unscreened',ind:'Back and pelvic pain',prior:'0',rt:false,fol:false,
-  ex:[['2026-09-18','XR_LS',1.0],['2026-09-30','CT_AP',1.2]]}
-];
-async function seedSample(){
-  const ref=Date.UTC(2026,9,1);
-  for(const s of SEED){
-    const p={id:s.id,name:s.name,dob:new Date(TODAY-(s.age+.25)*365.25*DAY).toISOString().slice(0,10),sex:s.sex,wt:s.wt,ht:s.ht,preg:s.preg,dept:s.dept,ind:s.ind,prior:s.prior,rt:s.rt,occ:false,fol:s.fol,consent:true,created:TODAY,by:'Sample data',sample:true};
-    await putPatient(p); D.patients.push(p);
-    for(const [d,k,r] of s.ex){
-      const off=(ref-Date.parse(d+'T00:00:00Z'))/DAY, t=Math.floor((TODAY-off*DAY)/DAY)*DAY;
-      const x={id:'x'+uid(),pid:s.id,key:k,t,val:+(SPEC[k].idx*r).toFixed(3),note:'',by:'Sample data',at:TODAY,sample:true};
-      await putExam(x); D.exams.push(x);
-    }
-  }
-  D.meta.seeded=true; await saveMeta();
-}
-
 /* ---------- routes and navigation ---------- */
 const ICONS={
  Overview:'<rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/>',
@@ -983,6 +972,7 @@ function updateChrome(){
   E('siteStats').textContent=`${D.patients.length} patient${D.patients.length===1?'':'s'}, ${D.ex.length} exam${D.ex.length===1?'':'s'} saved on this device`;
   const b=E('flagBadge'); if(b)b.textContent=openFlags().length;
   gateEl(E('sendPhys'),'sendPhysics');gateEl(E('expCsv'),'export');gateEl(E('addPatientBtn'),'addPatient');gateEl(E('logExamBtn'),'logExam');
+  document.querySelectorAll('.impOpen').forEach(b=>gateEl(b,'importData'));
 }
 function applyRole(){
   const r=ROLES[session.role];
@@ -1058,7 +1048,6 @@ E('form-up').addEventListener('submit',async e=>{
 async function enter(u){
   session=u; TODAY=Date.now(); REVIEW=(u.profile&&u.profile.rev)||100;
   await loadAll();
-  if(!D.meta.seeded&&!D.patients.length)await seedSample();
   prep();
   if(!D.byId[state.sel]){const o=orderedPatients();state.sel=o.length?o[0].id:null}
   E('auth').hidden=true;E('app').hidden=false;
@@ -1068,7 +1057,7 @@ async function enter(u){
 async function leave(){
   session=null;api('auth',{method:'POST',body:JSON.stringify({action:'signout'})}).catch(()=>{});
   E('app').hidden=true;E('auth').hidden=false;
-  ['onbDlg','patDlg','exDlg','pvDlg','evDlg','usersDlg'].forEach(i=>{if(E(i).open)E(i).close()});
+  ['onbDlg','patDlg','exDlg','pvDlg','evDlg','usersDlg','impDlg'].forEach(i=>{if(E(i).open)E(i).close()});
   ['lEmail','lPw','rName','rEmail','rStaff','rPw','rPw2'].forEach(i=>E(i).value='');
   document.querySelectorAll('#rules span').forEach(s=>s.classList.remove('ok'));
   state.q='';E('q').value='';state.route='Overview';state.sel=null;
@@ -1085,7 +1074,8 @@ document.addEventListener('click',e=>{
   const g=e.target.closest('[data-go]');if(g){const d=g.closest('dialog');if(d&&d.open)d.close();go(g.dataset.go);return}
   const o=e.target.closest('[data-open]');
   if(o){if(o.dataset.open==='addPatient'&&can('addPatient'))openPatientForm();
-        else if(o.dataset.open==='logExam'&&can('logExam'))openExamForm(o.dataset.pid)}
+        else if(o.dataset.open==='logExam'&&can('logExam'))openExamForm(o.dataset.pid)
+        else if(o.dataset.open==='importData'&&can('importData'))openImport()}
 });
 $('#theme').addEventListener('click',()=>{
   const r=document.documentElement, dark=r.dataset.theme?r.dataset.theme==='dark':matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1223,7 +1213,7 @@ function renderKpis(){
 }
 function orderedPatients(){return D.patients.slice().sort((a,b)=>(RANK[topSev(b)]||0)-(RANK[topSev(a)]||0)||b.twelve-a.twelve)}
 function renderList(){
-  if(!D.patients.length){E('list').innerHTML=`<p class="empty">No patients yet. <button class="link" data-go="Patients">Add the first patient</button> to start tracking dose.</p>`;return}
+  if(!D.patients.length){E('list').innerHTML=`<p class="empty">No patients yet. <button class="link" data-open="importData">Import a dataset</button> or <button class="link" data-go="Patients">add the first patient</button> to start tracking dose.</p>`;return}
   const q=state.q.trim().toLowerCase();
   const rows=orderedPatients().filter(p=>{
     const t=topSev(p);
@@ -1344,32 +1334,26 @@ function updatePredictor(){
 document.querySelectorAll('input[name=proto]').forEach(r=>r.addEventListener('change',updatePredictor));
 
 /* ----- outlier scatter ----- */
-function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
-const SC={chest:{key:'CT_CHEST',label:'CT chest',idx:400,ref:30,sd:5,min:18,max:44,seed:11},ap:{key:'CT_AP',label:'CT abdomen and pelvis',idx:650,ref:31,sd:5.5,min:18,max:44,seed:23},head:{key:'CT_HEAD',label:'CT head',idx:970,ref:17,sd:1.4,min:13,max:21,seed:37}};
+const SC={chest:{key:'CT_CHEST',label:'CT chest',idx:400,ref:30,min:18,max:44},ap:{key:'CT_AP',label:'CT abdomen and pelvis',idx:650,ref:31,min:18,max:44},head:{key:'CT_HEAD',label:'CT head',idx:970,ref:17,min:13,max:21}};
 function realOutliers(){const c=SC[state.sc],w=win();return D.ex.filter(x=>x.key===c.key&&inWin(x,w.a,w.b)&&alertHit(x))}
 function renderScatter(){
-  const c=SC[state.sc], r=rng(c.seed), N=160, g=()=>Math.sqrt(-2*Math.log(1-r()))*Math.cos(2*Math.PI*r());
-  const exp=d=>c.idx*Math.exp(.05*(d-c.ref)), pts=[];
-  for(let i=0;i<N;i++){const d=Math.min(c.max,Math.max(c.min,c.ref+c.sd*g()));let q=.94*Math.exp(.13*g());if(r()<.06)q*=1.35+.6*r();pts.push({d,y:exp(d)*q,q})}
-  const w=win(), real=D.ex.filter(x=>x.key===c.key&&inWin(x,w.a,w.b)).map(x=>{
+  const c=SC[state.sc], w=win();
+  const exp=d=>c.idx*Math.exp(.05*(d-c.ref));
+  const real=D.ex.filter(x=>x.key===c.key&&inWin(x,w.a,w.b)).map(x=>{
     const wd=x.p.wed||30, d=state.sc==='head'?c.ref+(wd-30)*.12:wd;return{x,d:Math.min(c.max,Math.max(c.min,d)),y:x.val}});
-  const W=560,H=310,ml=52,mr=14,mt=14,mb=42,iw=W-ml-mr,ih=H-mt-mb, ymax=Math.ceil(Math.max(...pts.map(p=>p.y),...real.map(p=>p.y))*1.08/100)*100;
+  const W=560,H=310,ml=52,mr=14,mt=14,mb=42,iw=W-ml-mr,ih=H-mt-mb, ymax=Math.ceil(Math.max(exp(c.max)*.6,c.idx*1.5,...real.map(p=>p.y))*1.08/100)*100;
   const X=d=>ml+(d-c.min)/(c.max-c.min)*iw, Y=v=>mt+ih-v/ymax*ih;
   let ax='<g class="ax">';
   for(let k=0;k<=4;k++){const v=ymax/4*k;ax+=`<line x1="${ml}" x2="${W-mr}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" ${k?'stroke-dasharray="2 4"':''}/><text x="${ml-8}" y="${Y(v)+4}" text-anchor="end">${Math.round(v)}</text>`}
   const step=c.max-c.min>20?5:2;for(let d=Math.ceil(c.min/step)*step;d<=c.max;d+=step)ax+=`<text x="${X(d)}" y="${H-22}" text-anchor="middle">${d}</text>`;
   ax+=`<text x="${ml+iw/2}" y="${H-5}" text-anchor="middle">Patient size, cm</text><text transform="translate(13 ${mt+ih/2}) rotate(-90)" text-anchor="middle">DLP, mGy·cm</text></g>`;
-  const curve=m=>{let s='';for(let d=c.min;d<=c.max;d+=.5)s+=(s?'L':'M')+X(d).toFixed(1)+' '+Y(Math.min(ymax,exp(d)*m)).toFixed(1);return s};
-  const ok=pts.filter(p=>p.q<=1.3), bad=pts.filter(p=>p.q>1.3);
+  let curve='';for(let d=c.min;d<=c.max;d+=.5)curve+=(curve?'L':'M')+X(d).toFixed(1)+' '+Y(Math.min(ymax,exp(d))).toFixed(1);
   const rOut=real.filter(p=>alertHit(p.x)).length;
   E('scatter').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Scatter of dose length product against patient size for ${c.label}">${ax}
-    <path d="${curve(1.3)}" fill="none" stroke="var(--high)" stroke-width="1.5" stroke-dasharray="6 5"/>
-    <path d="${curve(1)}" fill="none" stroke="var(--ink-3)" stroke-width="1.8"/>
-    ${ok.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="3.6" fill="var(--low)" fill-opacity=".3"/>`).join('')}
-    ${bad.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="4.6" fill="var(--high)" fill-opacity=".35"/>`).join('')}
-    ${real.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="6.5" fill="${alertHit(p.x)?'var(--high)':'var(--low)'}" stroke="var(--ink)" stroke-width="2"><title>${esc(p.x.p.name)}, ${dateTxt(p.x.t)}, ${pct(p.x.r)} vs DRL</title></circle>`).join('')}</svg>
-    <div class="legend"><span><i class="dot low"></i>Within reference</span><span><i class="dot high"></i>Well above the size-adjusted reference (simulated)</span><span>Ringed: logged here. Solid line: size-adjusted reference. Dashed: illustrative upper line. Background dots are simulated, not real patients.</span></div>`;
-  E('scNote').innerHTML=real.length?`<b>${rOut} of ${real.length} ${c.label} exams</b> logged in ${periodLabel()} went above the alert value${alertOf(c.key)==null?' (none set yet)':''}. Simulated baseline, not real patients: ${bad.length} of ${N}.`:`No ${c.label} exams logged in ${periodLabel()}. Showing a simulated baseline, not real patients: ${bad.length} of ${N} fall well above the size-adjusted reference.`;
+    <path d="${curve}" fill="none" stroke="var(--ink-3)" stroke-width="1.8"/>
+    ${real.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="6" fill="${alertHit(p.x)?'var(--high)':'var(--low)'}" fill-opacity=".75" stroke="var(--ink)" stroke-width="1.5"><title>${esc(p.x.p.name)}, ${dateTxt(p.x.t)}, ${pct(p.x.r)} vs DRL</title></circle>`).join('')}</svg>
+    <div class="legend"><span><i class="dot low"></i>Within alert value</span><span><i class="dot high"></i>Above alert value</span><span>Each dot is an exam in your records. The solid line is a size-adjusted reference model, not a published standard. Confirm it with your medical physicist.</span></div>`;
+  E('scNote').innerHTML=real.length?`<b>${rOut} of ${real.length} ${c.label} exams</b> in ${periodLabel()} went above the alert value${alertOf(c.key)==null?' (none set yet)':''}.`:`No ${c.label} exams in ${periodLabel()}. Import a dataset or log an exam to see them here.`;
 }
 E('scChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.sc=b.dataset.p;document.querySelectorAll('#scChips .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderScatter()});
 E('sendPhys').addEventListener('click',async()=>{
@@ -1398,7 +1382,7 @@ function renderPatients(){
     return !q||[p.name,p.id,p.dept].some(v=>String(v||'').toLowerCase().includes(q));
   });
   E('patCount').textContent=`${D.patients.length} patient${D.patients.length===1?'':'s'} on this device. Select a row to open the record.`;
-  E('patBody').innerHTML=rows.length?rows.map(p=>{const n=flagsOf(p).length;return `<tr data-id="${esc(p.id)}"><td><strong>${esc(p.name)}</strong>${p.sample?'<span class="sample-tag">Sample</span>':''}<small>${esc(p.id)}</small></td><td>${p.age==null?'':p.age+', '}${p.sex}</td><td>${esc(p.dept||'')}</td><td>${p.wt&&p.ht?`${p.wt} kg, ${p.ht} cm`:'<span class="mini-note">Not recorded</span>'}</td><td>${pregPill(p)}</td><td class="num">${fmt(p.twelve)} mSv</td><td class="num">${fmt(p.five)} mSv</td><td class="num">${n?`<span class="pill sev-${topSev(p)}">${n}</span>`:'\u2013'}</td></tr>`}).join(''):`<tr><td colspan="8" class="empty">${D.patients.length?'No patients match. Clear the search or choose All.':'No patients yet. Use Add patient to complete the intake questionnaire for the first one.'}</td></tr>`;
+  E('patBody').innerHTML=rows.length?rows.map(p=>{const n=flagsOf(p).length;return `<tr data-id="${esc(p.id)}"><td><strong>${esc(p.name)}</strong>${p.sample?'<span class="sample-tag">Sample</span>':''}<small>${esc(p.id)}</small></td><td>${p.age==null?'':p.age+', '}${p.sex}</td><td>${esc(p.dept||'')}</td><td>${p.wt&&p.ht?`${p.wt} kg, ${p.ht} cm`:'<span class="mini-note">Not recorded</span>'}</td><td>${pregPill(p)}</td><td class="num">${fmt(p.twelve)} mSv</td><td class="num">${fmt(p.five)} mSv</td><td class="num">${n?`<span class="pill sev-${topSev(p)}">${n}</span>`:'\u2013'}</td></tr>`}).join(''):`<tr><td colspan="8" class="empty">${D.patients.length?'No patients match. Clear the search or choose All.':'No patients yet. Use Import data to upload a dataset, or Add patient to complete the intake questionnaire for the first one.'}</td></tr>`;
 }
 E('patFilters').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.pf=b.dataset.f;document.querySelectorAll('#patFilters .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderPatients()});
 E('patBody').addEventListener('click',e=>{const r=e.target.closest('tr[data-id]');if(r)openPatientView(r.dataset.id)});
@@ -1707,6 +1691,226 @@ E('rpXlsx').addEventListener('click',()=>{
   }catch(x){toast('The Excel file could not be created.')}
 });
 E('rpPrint').addEventListener('click',()=>{try{window.print()}catch(e){toast('Printing is not available here. Download the Excel file instead.')}});
+
+/* =====================================================
+   IMPORT DATASET (Excel or CSV)
+   ===================================================== */
+const IMP_MAX_ROWS=5000, IMP_MAX_BYTES=15*1024*1024;
+const normH=s=>String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]+/g,'');
+const IMP_PAT_COLS={
+  id:['patientid','id','mrn','hospitalnumber','patientno','patientnumber'],
+  name:['name','patientname','fullname'],
+  dob:['dateofbirth','dob','birthdate'],
+  sex:['sex','gender'],
+  wt:['weightkg','weight','wt'],
+  ht:['heightcm','height','ht'],
+  dept:['department','referringdepartment','dept'],
+  preg:['pregnancystatus','pregnancy','preg'],
+  prior:['scanselsewhereinfiveyears','scanselsewhere','priorimaging','imagingelsewhere','prior'],
+  ind:['indication','clinicalindication','reason'],
+  rt:['previousradiotherapy','radiotherapy','hadradiotherapy'],
+  occ:['workswithradiation','occupationalexposure'],
+  fol:['followupimagingexpected','followup']
+};
+const IMP_EX_COLS={
+  pid:['patientid','id','mrn','hospitalnumber','patientno','patientnumber'],
+  exam:['exam','examcode','examtype','protocol','procedure'],
+  date:['date','examdate','dateofexam'],
+  val:['dosevalue','dose','doseindex','dlp','dap','agd','value'],
+  note:['note','notes','comment','comments']
+};
+const impGet=(r,aliases)=>{for(const a of aliases){if(r[a]!==undefined&&r[a]!==''&&r[a]!==null)return r[a]}return ''};
+const impNum=v=>{if(v===''||v==null)return null;const n=Number(String(v).replace(/,/g,'').trim());return isFinite(n)?n:NaN};
+const impYN=v=>/^(y|yes|true|1)$/i.test(String(v==null?'':v).trim());
+function impDate(v){
+  if(v===''||v==null)return null;
+  let y,m,d;
+  if(typeof v==='number'){
+    if(v<20000||v>80000)return null;
+    const t=Date.UTC(1899,11,30)+Math.floor(v)*DAY, o=new Date(t);
+    return t;
+  }
+  const str=String(v).trim();
+  let k=/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:[T\s].*)?$/.exec(str);
+  if(k){y=+k[1];m=+k[2];d=+k[3]}
+  else if((k=/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/.exec(str))){d=+k[1];m=+k[2];y=+k[3]}
+  else return null;
+  const t=Date.UTC(y,m-1,d), o=new Date(t);
+  return(o.getUTCFullYear()===y&&o.getUTCMonth()===m-1&&o.getUTCDate()===d)?t:null;
+}
+function impExamKey(v){
+  const raw=String(v==null?'':v).trim(); if(!raw)return null;
+  const up=raw.toUpperCase().replace(/\s+/g,'_');
+  if(SPEC[up])return up;
+  const n=normH(raw);
+  const hit=Object.values(SPEC).find(s=>normH(s.name)===n);
+  return hit?hit.key:null;
+}
+function impPrior(v){
+  const t=String(v==null?'':v).toLowerCase().replace(/\s+/g,'');
+  if(!t)return 'unknown';
+  if(/^(0|none|no)$/.test(t))return '0';
+  if(/^1(-|to)2$/.test(t))return '1-2';
+  if(/^3(-|to)5$/.test(t))return '3-5';
+  if(/^6/.test(t))return '6+';
+  return 'unknown';
+}
+function impPreg(v){
+  const t=String(v==null?'':v).toLowerCase().replace(/[^a-z]/g,'');
+  if(t==='no'||t==='notpregnant')return 'no';
+  if(t==='possible'||t==='possiblypregnant')return 'possible';
+  if(t==='yes'||t==='pregnant')return 'yes';
+  return 'unscreened';
+}
+const impKeys=rows=>rows.length?new Set(Object.keys(rows[0]).map(normH)):new Set();
+const impHas=(set,aliases)=>aliases.some(a=>set.has(a));
+const impRows=ws=>XLSX.utils.sheet_to_json(ws,{defval:'',raw:true}).map(row=>{const r={};for(const k in row)r[normH(k)]=row[k];return r}).filter(r=>Object.values(r).some(v=>String(v).trim()!==''));
+
+/* Turn a workbook into a plan: valid rows to save, rows already present, and problems. */
+function impBuildPlan(wb){
+  const plan={pats:[],exams:[],skipPats:0,skipExams:0,errors:[],sheets:0};
+  const patRows=[], exRows=[];
+  wb.SheetNames.forEach(n=>{
+    const rows=impRows(wb.Sheets[n]); if(!rows.length)return;
+    const k=impKeys(rows);
+    if(impHas(k,IMP_EX_COLS.pid)&&impHas(k,IMP_EX_COLS.date)&&impHas(k,IMP_EX_COLS.val)&&impHas(k,IMP_EX_COLS.exam)){plan.sheets++;rows.forEach((r,i)=>exRows.push({r,n,line:i+2}))}
+    else if(impHas(k,IMP_PAT_COLS.id)&&impHas(k,IMP_PAT_COLS.name)&&impHas(k,IMP_PAT_COLS.dob)){plan.sheets++;rows.forEach((r,i)=>patRows.push({r,n,line:i+2}))}
+  });
+  if(patRows.length+exRows.length>IMP_MAX_ROWS)throw Object.assign(new Error('rows'),{code:'rows'});
+  const bad=(n,line,msg)=>plan.errors.push({where:`${n}, row ${line}`,msg});
+  const seenP=new Set(), known=new Set(D.patients.map(p=>p.id));
+  patRows.forEach(({r,n,line})=>{
+    const id=String(impGet(r,IMP_PAT_COLS.id)).trim(), name=String(impGet(r,IMP_PAT_COLS.name)).trim();
+    if(!/^[A-Za-z0-9\-_/]{3,20}$/.test(id))return bad(n,line,'Patient ID should be 3 to 20 letters, numbers or dashes.');
+    if(name.length<2)return bad(n,line,'Name is missing.');
+    if(seenP.has(id))return bad(n,line,`Patient ID ${id} appears twice in this file.`);
+    seenP.add(id);
+    if(D.byId[id]){plan.skipPats++;known.add(id);return}
+    const t=impDate(impGet(r,IMP_PAT_COLS.dob)), age=t==null?null:Math.floor((TODAY-t)/(365.25*DAY));
+    if(t==null||age<0||age>120)return bad(n,line,'Date of birth is missing or not a valid past date. Use yyyy-mm-dd.');
+    const sx=String(impGet(r,IMP_PAT_COLS.sex)).trim().toLowerCase(), sex=sx[0]==='m'?'M':sx[0]==='f'?'F':null;
+    if(!sex)return bad(n,line,'Sex should be M or F.');
+    const wt=impNum(impGet(r,IMP_PAT_COLS.wt)), ht=impNum(impGet(r,IMP_PAT_COLS.ht));
+    if(wt!=null&&(isNaN(wt)||wt<2||wt>300))return bad(n,line,'Weight should be between 2 and 300 kg.');
+    if(ht!=null&&(isNaN(ht)||ht<40||ht>230))return bad(n,line,'Height should be between 40 and 230 cm.');
+    const dn=normH(impGet(r,IMP_PAT_COLS.dept)), dept=DEPTS.find(d=>normH(d)===dn)||'Other';
+    const womanAge=sex==='F'&&age>=12&&age<=55;
+    plan.pats.push({id,name,dob:new Date(t).toISOString().slice(0,10),sex,wt,ht,preg:womanAge?impPreg(impGet(r,IMP_PAT_COLS.preg)):'na',dept,
+      ind:String(impGet(r,IMP_PAT_COLS.ind)).trim().slice(0,160),prior:impPrior(impGet(r,IMP_PAT_COLS.prior)),
+      rt:impYN(impGet(r,IMP_PAT_COLS.rt)),occ:impYN(impGet(r,IMP_PAT_COLS.occ)),fol:impYN(impGet(r,IMP_PAT_COLS.fol))});
+    known.add(id);
+  });
+  const have=new Set(D.exams.map(x=>x.pid+'|'+x.key+'|'+x.t+'|'+x.val));
+  exRows.forEach(({r,n,line})=>{
+    const pid=String(impGet(r,IMP_EX_COLS.pid)).trim();
+    if(!pid)return bad(n,line,'Patient ID is missing.');
+    if(!known.has(pid))return bad(n,line,`Patient ${pid} is not in the system or in the Patients sheet of this file.`);
+    const key=impExamKey(impGet(r,IMP_EX_COLS.exam));
+    if(!key)return bad(n,line,`Exam "${String(impGet(r,IMP_EX_COLS.exam)).trim()}" is not recognised. See the Exam codes sheet in the template.`);
+    const t=impDate(impGet(r,IMP_EX_COLS.date));
+    if(t==null||t>TODAY+DAY||t<Date.UTC(1990,0,1))return bad(n,line,'Exam date is missing, in the future, or not a valid date. Use yyyy-mm-dd.');
+    const val=impNum(impGet(r,IMP_EX_COLS.val));
+    if(!(val>0))return bad(n,line,`Enter the ${SPEC[key].label} (${SPEC[key].unit}) as a number above zero.`);
+    const sig=pid+'|'+key+'|'+t+'|'+val;
+    if(have.has(sig)){plan.skipExams++;return}
+    have.add(sig);
+    plan.exams.push({pid,key,t,val,note:String(impGet(r,IMP_EX_COLS.note)).trim().slice(0,160)});
+  });
+  return plan;
+}
+
+let impPlan=null;
+function impSync(){
+  const n=impPlan?impPlan.pats.length+impPlan.exams.length:0;
+  const needConsent=!!(impPlan&&impPlan.pats.length);
+  E('impConsentWrap').hidden=!needConsent;
+  E('impGo').disabled=!(n>0&&(!needConsent||E('impConsent').checked));
+}
+function impShow(plan){
+  const p=plan, parts=[];
+  parts.push(`<div class="inline-info"><b>${p.pats.length}</b> new patient${p.pats.length===1?'':'s'}${p.skipPats?` (${p.skipPats} already in the system, left unchanged)`:''}<br><b>${p.exams.length}</b> new exam${p.exams.length===1?'':'s'}${p.skipExams?` (${p.skipExams} already saved, skipped)`:''}</div>`);
+  if(p.errors.length){
+    parts.push(`<div class="inline-warn bad"><b>${p.errors.length} row${p.errors.length===1?'':'s'} will be skipped because of problems:</b><ul style="margin:6px 0 0 18px;padding:0">${p.errors.slice(0,15).map(e=>`<li>${esc(e.where)}: ${esc(e.msg)}</li>`).join('')}</ul>${p.errors.length>15?`<p style="margin:6px 0 0">And ${p.errors.length-15} more.</p>`:''}</div>`);
+  }
+  if(!p.pats.length&&!p.exams.length&&!p.errors.length)parts.push('<div class="inline-warn">Nothing new to import from this file.</div>');
+  E('impOut').innerHTML=parts.join('');
+}
+function openImport(){
+  impPlan=null;E('impFile').value='';E('impOut').innerHTML='';E('err-imp').textContent='';E('impConsent').checked=false;
+  E('impGo').textContent='Import';impSync();E('impDlg').showModal();
+}
+E('impFile').addEventListener('change',async e=>{
+  const f=e.target.files[0], err=E('err-imp'); err.textContent='';E('impOut').innerHTML='';impPlan=null;impSync();
+  if(!f)return;
+  if(typeof XLSX==='undefined'){err.textContent='The spreadsheet reader did not load. Reload the page and try again.';return}
+  if(f.size>IMP_MAX_BYTES){err.textContent='That file is larger than 15 MB. Split it into smaller files.';return}
+  try{
+    const csv=/\.csv$/i.test(f.name)||f.type==='text/csv';
+    const wb=csv?XLSX.read(await f.text(),{type:'string',raw:true}):XLSX.read(new Uint8Array(await f.arrayBuffer()),{type:'array'});
+    impPlan=impBuildPlan(wb);
+    if(!impPlan.sheets){impPlan=null;err.textContent='No patient or exam columns were found. Download the template and copy your data into it.';return}
+    impShow(impPlan);
+  }catch(x){
+    impPlan=null;
+    err.textContent=x&&x.code==='rows'?`A file can hold at most ${IMP_MAX_ROWS.toLocaleString('en-US')} rows. Split it and import the parts one at a time.`:'That file could not be read. Use an .xlsx or .csv file.';
+  }
+  impSync();
+});
+E('impConsent').addEventListener('change',impSync);
+E('impGo').addEventListener('click',async()=>{
+  if(!impPlan||!can('importData'))return;
+  const plan=impPlan, err=E('err-imp'), btn=E('impGo'); err.textContent='';
+  btn.disabled=true;
+  const total=plan.pats.length+plan.exams.length; let done=0, failed=0;
+  const tick=()=>{btn.textContent=`Saving ${done} of ${total}`};tick();
+  const pool=async(items,fn,n=6)=>{let i=0;await Promise.all(Array.from({length:Math.min(n,items.length)},async()=>{while(i<items.length){const it=items[i++];try{await fn(it)}catch(x){failed++}done++;tick()}}))};
+  const now=Date.now();
+  await pool(plan.pats,async r=>{const p=Object.assign({consent:true,created:now,by:session.name},r);await putPatient(p);D.patients.push(p)});
+  const okIds=new Set(D.patients.map(p=>p.id));
+  const exams=plan.exams.filter(x=>okIds.has(x.pid));
+  failed+=plan.exams.length-exams.length; done+=plan.exams.length-exams.length;
+  await pool(exams,async r=>{const x=Object.assign({id:'x'+uid(),by:session.name,at:now},r);await putExam(x);D.exams.push(x)});
+  prep();
+  if(!D.byId[state.sel]){const o=orderedPatients();state.sel=o.length?o[0].id:null}
+  renderRoute();
+  const saved=total-failed;
+  if(failed){
+    impPlan=null;btn.textContent='Import';
+    err.textContent=`${saved} of ${total} rows were saved. ${failed} could not be saved. Upload the same file again to add the missing ones. Rows already saved are skipped.`;
+    E('impOut').innerHTML='';impSync();return;
+  }
+  impPlan=null;E('impDlg').close();btn.textContent='Import';
+  const fl=openFlags().length;
+  toast(`Imported ${plan.pats.length} patient${plan.pats.length===1?'':'s'} and ${plan.exams.length} exam${plan.exams.length===1?'':'s'}${fl?`. ${fl} open flag${fl===1?'':'s'}.`:'.'}`);
+});
+E('impTpl').addEventListener('click',()=>{
+  if(typeof XLSX==='undefined'){toast('The spreadsheet reader did not load. Reload the page.');return}
+  const wb=XLSX.utils.book_new();
+  const pat=XLSX.utils.aoa_to_sheet([['Patient ID','Name','Date of birth','Sex','Weight (kg)','Height (cm)','Department','Pregnancy status','Scans elsewhere in five years','Indication','Previous radiotherapy','Works with radiation','Follow-up imaging expected']]);
+  const ex=XLSX.utils.aoa_to_sheet([['Patient ID','Exam','Date','Dose value','Note']]);
+  const codes=XLSX.utils.aoa_to_sheet([['Code','Exam','Dose value to enter','Unit'],...Object.values(SPEC).map(s=>[s.key,s.name,s.label,s.unit])]);
+  const help=XLSX.utils.aoa_to_sheet([
+    ['How to fill this in'],
+    ['Patients sheet: Patient ID, Name, Date of birth and Sex are required. Everything else is optional.'],
+    ['Exams sheet: Patient ID, Exam, Date and Dose value are required. Every Patient ID must be on the Patients sheet or already in the system.'],
+    ['Dates: type them as yyyy-mm-dd, for example 2026-03-14. dd/mm/yyyy also works.'],
+    ['Sex: M or F.'],
+    ['Department: '+DEPTS.join(', ')+'. Anything else is saved as Other.'],
+    ['Pregnancy status (women aged 12 to 55 only): Not pregnant, Possibly pregnant, Pregnant, or Not screened. Blank is saved as Not screened.'],
+    ['Scans elsewhere in five years: None, 1 to 2, 3 to 5, 6 or more, or Not known.'],
+    ['Previous radiotherapy, Works with radiation, Follow-up imaging expected: Yes or No.'],
+    ['Exam: use a code or the full exam name from the Exam codes sheet.'],
+    ['Dose value: the number shown on the dose report, in the unit listed on the Exam codes sheet.']
+  ]);
+  pat['!cols']=[{wch:12},{wch:24},{wch:14},{wch:6},{wch:12},{wch:12},{wch:24},{wch:18},{wch:26},{wch:28},{wch:20},{wch:20},{wch:24}];
+  ex['!cols']=[{wch:12},{wch:30},{wch:12},{wch:12},{wch:30}];
+  codes['!cols']=[{wch:12},{wch:32},{wch:20},{wch:10}];
+  help['!cols']=[{wch:120}];
+  XLSX.utils.book_append_sheet(wb,pat,'Patients');XLSX.utils.book_append_sheet(wb,ex,'Exams');
+  XLSX.utils.book_append_sheet(wb,codes,'Exam codes');XLSX.utils.book_append_sheet(wb,help,'How to fill this in');
+  try{saveFile('dose-tracker-import-template.xlsx',new Uint8Array(XLSX.write(wb,{bookType:'xlsx',type:'array'})),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+  catch(x){toast('The template could not be created.')}
+});
 
 /* =====================================================
    SETTINGS
