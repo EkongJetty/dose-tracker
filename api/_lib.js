@@ -2,7 +2,7 @@ import { neon } from '@neondatabase/serverless';
 import crypto from 'node:crypto';
 
 export const sql = neon(process.env.DATABASE_URL);
-export const MAX_USERS = 10;
+export const MAX_USERS = 30;
 export const ROLES = ['radiographer', 'radiologist', 'physicist', 'rso', 'admin'];
 const SECRET = process.env.SESSION_SECRET || '';
 const COOKIE = 'dt_session';

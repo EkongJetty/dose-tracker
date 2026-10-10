@@ -307,7 +307,7 @@ td small{display:block;color:var(--ink-3);font-size:12px}
 .btn.danger{color:var(--high);border-color:color-mix(in srgb,var(--high) 40%,var(--line))}
 .btn.danger.armed{background:var(--high);color:#fff;border-color:var(--high)}
 .link{border:0;background:none;color:var(--accent);font-weight:600;padding:0;text-decoration:underline;text-underline-offset:3px}
-.seats{font-size:13px;color:var(--ink-2);margin-top:14px;display:flex;align-items:center;gap:10px}
+.seats{display:none}
 .seats .sbar{flex:1;height:6px;border-radius:9px;background:var(--line);overflow:hidden;max-width:160px}
 .seats .sbar u{display:block;height:100%;background:var(--accent);text-decoration:none;border-radius:9px}
 .seats.full{color:var(--high)}
@@ -349,7 +349,7 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
 .cards .c{border:1px solid var(--line);border-radius:14px;padding:12px 14px}
 .cards .c span{display:block;font-size:13px;color:var(--ink-2)}
 .cards .c b{font-family:var(--display);font-size:26px;font-weight:650;letter-spacing:-.02em}
-.drlin{width:96px;height:34px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:0 8px;text-align:right}
+.drlin,.alin{width:96px;height:34px;background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:0 8px;text-align:right}
 .drlin:focus{outline:0;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 .flaghead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline}
 .flaghead .link{font-size:13.5px}
@@ -490,7 +490,7 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
           <div class="chips" id="exFilters">
             <button class="chip" data-f="all" aria-pressed="true">All</button>
             <button class="chip" data-f="over" aria-pressed="false">Above DRL</button>
-            <button class="chip" data-f="out" aria-pressed="false">More than 30% over</button>
+            <button class="chip" data-f="out" aria-pressed="false">Above alert value</button>
           </div>
           <select class="sel" id="exMod" aria-label="Modality"><option value="">All modalities</option></select>
         </div>
@@ -502,7 +502,7 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
     <div class="page" id="pg-protocols" hidden>
       <section class="panel">
         <div class="ph"><div><h2>Diagnostic reference levels</h2><p id="drlNote"></p></div></div>
-        <div class="tablewrap tall"><table id="drlTable"><thead><tr><th>Protocol</th><th>Modality</th><th class="num">Reference level (DRL)</th><th class="num">mSv per unit</th><th class="num">Exams</th><th class="num">Median vs DRL</th><th class="num">Above DRL</th><th class="num">Over +30%</th><th></th></tr></thead><tbody id="drlBody"></tbody></table></div>
+        <div class="tablewrap tall"><table id="drlTable"><thead><tr><th>Protocol</th><th>Modality</th><th class="num">Reference level (DRL)</th><th class="num">mSv per unit</th><th class="num">Exams</th><th class="num">Group median vs DRL</th><th class="num">Alert value (one exam)</th><th class="num">Above alert</th><th></th></tr></thead><tbody id="drlBody"></tbody></table></div>
         <p class="note" id="drlHint"></p>
       </section>
     </div>
@@ -533,7 +533,7 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
             <select id="rpType">
               <option value="summary">Department summary</option>
               <option value="cumulative">Cumulative dose by patient</option>
-              <option value="over">Exams more than 30% over DRL</option>
+              <option value="over">Exams above alert value</option>
               <option value="flags">Open flags</option>
               <option value="referrals">Physics referrals log</option>
             </select></div>
@@ -573,7 +573,6 @@ dialog.narrow{width:min(620px,calc(100% - 32px))}
       </section>
     </div>
 
-    <p class="foot noprint">Patient records are stored in the server database. Dose estimates and AI flags use illustrative rules, not clinical guidance. Sample patients are fictional.</p>
   </main>
 </div>
 <div class="auth" id="auth" hidden>
@@ -752,7 +751,7 @@ const $=(s,r=document)=>r.querySelector(s);
 const E=id=>document.getElementById(id);
 const fmt=(n,d=1)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const DAY=864e5, MAX_USERS=10;
+const DAY=864e5, MAX_USERS=30;
 let TODAY=Date.now(), REVIEW=100;
 const slug=k=>k.toLowerCase().replace(/\s+/g,'-');
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
@@ -823,7 +822,7 @@ const putExam=x=>DB.put('exams',pick(x,EXAM_KEYS));
 
 /* ---------- app data in memory ---------- */
 const D={patients:[],exams:[],ex:[],flags:[],byId:{},meta:{}};
-const META0=()=>({drl:{},dismissed:{},notified:{},referrals:[],seeded:false});
+const META0=()=>({drl:{},alert:{},dismissed:{},notified:{},referrals:[],seeded:false});
 D.meta=META0();
 const saveMeta=()=>DB.put('meta',Object.assign({key:'app'},D.meta));
 async function loadAll(){
@@ -859,7 +858,13 @@ const ymd=t=>new Date(t).toISOString().slice(0,10);
 /* ---------- derived numbers ---------- */
 const drlOf=k=>D.meta.drl[k]!=null?D.meta.drl[k]:SPEC[k].idx;
 const dateTxt=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
-const band=r=>r<=1.15?{c:'low',w:'Typical'}:r<=1.3?{c:'mid',w:'Above typical'}:{c:'high',w:'Review'};
+/* Standards used: reference levels (DRL) are group benchmarks, ICRP 135. Alert values are facility-set limits for one exam, NEMA XR 25 and AAPM. */
+const DRL_MIN_N=10;
+const alertOf=k=>D.meta.alert&&D.meta.alert[k]>0?D.meta.alert[k]:null;
+const alertHit=x=>{const a=alertOf(x.key);return a!=null&&x.val>a};
+const stdAdult=x=>x.p&&(x.p.age==null||x.p.age>=16);
+const groupStat=(key,list)=>{const a=(list||D.ex).filter(x=>x.key===key&&stdAdult(x));return{n:a.length,med:a.length>=DRL_MIN_N?median(a.map(x=>x.val)):null}};
+const band=(r,hit)=>hit?{c:'high',w:'Above alert value'}:r<=1?{c:'low',w:'At or below reference'}:{c:'mid',w:'Above reference'};
 const pct=r=>(r>=1?'+':'\u2212')+Math.abs(Math.round((r-1)*100))+'%';
 const inits=n=>n.split(/\s+/).filter(Boolean).map(w=>w[0]).join('').slice(0,2).toUpperCase();
 const ageFromDob=iso=>{const d=Date.parse(iso);return isNaN(d)?null:Math.floor((TODAY-d)/(365.25*DAY))};
@@ -890,16 +895,16 @@ function computeFlags(){
   const out=[], add=(p,rule,sev,t,d,why,x)=>out.push({key:p.id+'|'+rule+'|'+(x?x.id:''),p,x:x||null,rule,sev,t,d,why});
   D.patients.forEach(p=>{
     const n5=p.e.filter(e=>e.t>=TODAY-5*365*DAY).length, womanAge=p.sex==='F'&&p.age>=12&&p.age<=55;
-    if(p.five>=REVIEW)add(p,'cum','high','Cumulative dose passed the review level',`Five-year effective dose reached ${fmt(p.five)} mSv across ${n5} exams, against a review level of ${fmt(REVIEW,0)} mSv. Ultrasound or MRI may suit the next follow-up where clinically appropriate.`,'Five-year dose at or above the review level');
+    if(p.five>=REVIEW)add(p,'cum','high','Cumulative dose passed the review level',`Five-year effective dose reached ${fmt(p.five)} mSv across ${n5} exams, against a review level of ${fmt(REVIEW,0)} mSv. Ultrasound or MRI may suit the next follow-up where clinically appropriate. This is a local review trigger, not a dose limit.`,'Five-year dose at or above the review level');
     else if(p.five>=REVIEW*.8)add(p,'near','medium','Cumulative dose is close to the review level',`Five-year effective dose is ${fmt(p.five)} mSv, ${Math.round(p.five/REVIEW*100)}% of the ${fmt(REVIEW,0)} mSv review level. Check that the next exam is needed.`,'Five-year dose at 80% of the review level or more');
     p.e.forEach((x,i)=>{
       const recent=x.t>=TODAY-365*DAY, prev=p.e[i-1];
-      if(recent&&x.r>1.3){
-        let d=`${x.s.label} was ${fmt(x.val,x.s.dec)} ${x.s.unit}, ${pct(x.r)} against the ${fmt(drlOf(x.key),x.s.dec)} reference level.`;
+      if(recent&&alertHit(x)){
+        let d=`${x.s.label} was ${fmt(x.val,x.s.dec)} ${x.s.unit}, above the ${fmt(alertOf(x.key),x.s.dec)} alert value set for this protocol.`;
         if(p.age!=null&&p.age<16)d+=' This patient is under 16. Review the paediatric protocol with the radiographer on duty.';
         else if(x.key==='FLUORO'){const k=p.e.filter(e=>e.key==='FLUORO'&&e.t>=TODAY-5*365*DAY).length;d+=` This is interventional procedure ${k} in five years. Check the estimated peak skin dose and consider a skin review.`}
         else d+=' Check the scan range and protocol settings that were used.';
-        add(p,'drl',(x.r>1.5||(p.age!=null&&p.age<16))?'high':'medium',`${x.s.name} on ${dateTxt(x.t)} ran ${Math.round((x.r-1)*100)}% above the DRL`,d,'Dose index more than 30% over the reference level',x);
+        add(p,'drl',(p.age!=null&&p.age<16)?'high':'medium',`${x.s.name} on ${dateTxt(x.t)} went above its alert value`,d,'Single exam above the alert value set for the protocol (NEMA XR 25, AAPM)',x);
       }
       if(recent&&prev){
         const days=Math.round((x.t-prev.t)/DAY);
@@ -1010,7 +1015,7 @@ E('tab-in').onclick=()=>setTab('in'); E('tab-up').onclick=()=>setTab('up');
 async function updateSeats(){
   const n=await usersCount(), el=E('seats');
   el.className='seats'+(n>=MAX_USERS?' full':'');
-  el.innerHTML=`<span>${n} of ${MAX_USERS} accounts in use</span><span class="sbar"><u style="width:${Math.min(100,n/MAX_USERS*100)}%"></u></span>`;
+  el.innerHTML='';
   return n;
 }
 async function fillRoles(){
@@ -1093,7 +1098,7 @@ E('period').addEventListener('change',e=>{state.period=+e.target.value;renderRou
 /* ---------- admin: users and roles ---------- */
 async function renderUsers(){
   const us=(await U.all()).sort((a,b)=>a.created-b.created);
-  E('usersSub').textContent=`${us.length} of ${MAX_USERS} accounts in use. Only administrators see this. New accounts start with the role they chose at sign-up.`;
+  E('usersSub').textContent=`${us.length} account${us.length===1?'':'s'}. Only administrators see this. New accounts start with the role they chose at sign-up.`;
   E('usersBody').innerHTML=us.map(u=>{const me=u.id===session.id;return `<tr data-id="${u.id}"><td>${esc(u.name)}${me?' <span class="tag">You</span>':''}</td><td>${esc(u.email)}</td><td>${esc(u.staff)}</td><td>${me?ROLES[u.role].name:`<select class="rolesel" aria-label="Role for ${esc(u.name)}">${Object.keys(ROLES).map(k=>`<option value="${k}" ${k===u.role?'selected':''}>${ROLES[k].name}</option>`).join('')}</select>`}</td><td>${u.profile?'<span class="pill low">Done</span>':'<span class="pill mid">Pending</span>'}</td><td class="num">${me?'':'<button class="btn rm">Remove</button>'}</td></tr>`}).join('');
   E('roleList').innerHTML=Object.values(ROLES).map(r=>`<li><b>${r.name}.</b> ${r.hint}</li>`).join('');
 }
@@ -1201,19 +1206,19 @@ function buckets(fn){
 }
 function renderKpis(){
   const w=win(), cur=D.ex.filter(x=>inWin(x,w.a,w.b)), prev=w.pa!=null?D.ex.filter(x=>inWin(x,w.pa,w.a-1)):[];
-  const over=a=>a.length?a.filter(x=>x.r>1).length/a.length*100:0;
-  const chest=cur.filter(x=>x.key==='CT_CHEST').map(x=>x.val), chestPrev=prev.filter(x=>x.key==='CT_CHEST').map(x=>x.val);
+  const over=a=>a.length?a.filter(alertHit).length/a.length*100:0;
+  const chest=cur.filter(x=>x.key==='CT_CHEST'&&stdAdult(x)).map(x=>x.val), chestPrev=prev.filter(x=>x.key==='CT_CHEST').map(x=>x.val);
   const mc=median(chest), drlC=drlOf('CT_CHEST');
   const fl=openFlags(), hi=fl.filter(f=>f.sev==='high').length;
   const d1=w.pa==null?'All exams on record':(prev.length?`<b>${cur.length>=prev.length?'+':'\u2212'}${Math.abs(Math.round((cur.length-prev.length)/prev.length*100))}%</b> on the previous ${periodLabel()}`:'No earlier exams to compare');
   const o=over(cur), op=over(prev);
-  const d2=!cur.length?'No exams in this period':(w.pa!=null&&prev.length?`<b class="${o<=op?'good':'bad'}">${o<=op?'Down':'Up'} from ${fmt(op)}%</b> last period`:'Share of exams over the reference level');
-  const d3=mc==null?'No chest CT in this period':`<b class="${mc<=drlC?'good':'bad'}">${Math.abs(Math.round((mc/drlC-1)*100))}% ${mc<=drlC?'under':'over'}</b> the ${fmt(drlC,0)} DRL`;
+  const d2=!cur.length?'No exams in this period':(w.pa!=null&&prev.length?`<b class="${o<=op?'good':'bad'}">${o<=op?'Down':'Up'} from ${fmt(op)}%</b> last period`:'Share above the protocol alert values');
+  const d3=mc==null?'No chest CT in this period':`<b class="${mc<=drlC?'good':'bad'}">${Math.abs(Math.round((mc/drlC-1)*100))}% ${mc<=drlC?'under':'over'}</b> the ${fmt(drlC,0)} DRL${chest.length<DRL_MIN_N?` (n=${chest.length}, fewer than ${DRL_MIN_N})`:''}`;
   let last=drlC;
   E('kpis').innerHTML=`
    <div class="kpi">${spark(buckets(a=>a.length),'var(--accent)')}<span class="l">Exams recorded</span><span class="v">${fmt(cur.length,0)}</span><span class="d">${d1}</span></div>
-   <div class="kpi">${spark(buckets(a=>over(a)),o>20?'var(--high)':'var(--low)')}<span class="l">Exams above local DRL</span><span class="v">${fmt(o)}%<small>${cur.filter(x=>x.r>1).length} exams</small></span><span class="d">${d2}</span></div>
-   <div class="kpi">${spark(buckets(a=>{const m=median(a.filter(x=>x.key==='CT_CHEST').map(x=>x.val));if(m!=null)last=m;return last}),'var(--low)')}<span class="l">Median chest CT dose</span><span class="v">${mc==null?'\u2013':fmt(mc,0)}<small>mGy·cm</small></span><span class="d">${d3}</span></div>
+   <div class="kpi">${spark(buckets(a=>over(a)),o>5?'var(--high)':'var(--low)')}<span class="l">Exams above alert value</span><span class="v">${fmt(o)}%<small>${cur.filter(alertHit).length} exams</small></span><span class="d">${d2}</span></div>
+   <div class="kpi">${spark(buckets(a=>{const m=median(a.filter(x=>x.key==='CT_CHEST').map(x=>x.val));if(m!=null)last=m;return last}),'var(--low)')}<span class="l">Median adult chest CT dose</span><span class="v">${mc==null?'\u2013':fmt(mc,0)}<small>mGy·cm</small></span><span class="d">${d3}</span></div>
    <div class="kpi"><span class="l">Open AI flags</span><span class="v">${fl.length}</span><span class="d"><b class="${hi?'bad':'good'}">${hi} high</b> priority, ${fl.length-hi} to review</span></div>`;
 }
 function orderedPatients(){return D.patients.slice().sort((a,b)=>(RANK[topSev(b)]||0)-(RANK[topSev(a)]||0)||b.twelve-a.twelve)}
@@ -1249,7 +1254,7 @@ function chartSVG(p){
   for(let y=new Date(t0).getUTCFullYear()+1;y<=new Date(t1).getUTCFullYear();y++){const x=X(Date.UTC(y,0,1));if(x<ml||x>W-mr)continue;g+=`<line x1="${x}" x2="${x}" y1="${mt+ih}" y2="${mt+ih+5}" stroke="var(--line)"/><text x="${x}" y="${H-8}" text-anchor="middle">${y}</text>`}
   g+=`<text x="${ml-10}" y="${mt-5}" text-anchor="end" style="font-size:11px">mSv</text></g>`;
   const rev=REVIEW<=ymax?`<line x1="${ml}" x2="${W-mr}" y1="${Y(REVIEW)}" y2="${Y(REVIEW)}" stroke="var(--high)" stroke-width="1.5" stroke-dasharray="6 5"/><text x="${W-mr}" y="${Y(REVIEW)-7}" text-anchor="end" style="fill:var(--high);font-size:12px;font-weight:600">Review level, ${fmt(REVIEW,0)} mSv</text>`:'';
-  const marks=ex.map(e=>{const b=band(e.r),c=chartPts[e.id];return `<circle class="mk" data-x="${e.id}" tabindex="0" r="7" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" fill="var(--${b.c})" role="img" aria-label="${esc(e.s.name)}, ${dateTxt(e.t)}, ${fmt(e.eff)} millisieverts"/>`}).join('');
+  const marks=ex.map(e=>{const b=band(e.r,alertHit(e)),c=chartPts[e.id];return `<circle class="mk" data-x="${e.id}" tabindex="0" r="7" cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" fill="var(--${b.c})" role="img" aria-label="${esc(e.s.name)}, ${dateTxt(e.t)}, ${fmt(e.eff)} millisieverts"/>`}).join('');
   return `<svg viewBox="0 0 ${W} ${H}" role="group" aria-label="Cumulative effective dose over five years">${g}
     <path class="area-in" d="${d} V${Y(0)} Z" fill="var(--accent)" fill-opacity=".09"/>${rev}
     <path class="line-draw" pathLength="1" d="${d}" fill="none" stroke="var(--accent)" stroke-width="2.6" stroke-linejoin="round"/>${marks}</svg>`;
@@ -1270,7 +1275,7 @@ function renderDetail(){
      <div class="stat"><span class="l">Exams</span><span class="v">${p.e.length}</span></div>
    </div>
    <div class="chartwrap" id="cw">${chartSVG(p)}<div class="tip" id="tip" hidden></div></div>
-   <div class="legend"><span><i class="dot low"></i>Typical, within 15% of DRL</span><span><i class="dot mid"></i>15 to 30% over</span><span><i class="dot high"></i>More than 30% over</span></div>
+   <div class="legend"><span><i class="dot low"></i>At or below reference</span><span><i class="dot mid"></i>Above reference</span><span><i class="dot high"></i>Above alert value</span></div>
    <h3 class="sub">AI findings</h3>
    <div id="finds">${finds.length?finds.map(f=>`
      <article class="find" data-k="${esc(f.key)}"><span class="pill sev-${f.sev}">${SEVLAB[f.sev]}</span>
@@ -1278,7 +1283,7 @@ function renderDetail(){
        <div class="acts"><button class="btn primary" data-a="notify" ${gate('notify')}>Notify radiologist</button>${f.x?'<button class="btn" data-a="open">Open exam</button>':''}<button class="btn" data-a="dismiss" ${gate('dismiss')}>Dismiss</button></div></div></article>`).join(''):'<p class="empty" style="padding-left:0">No open flags for this patient.</p>'}</div>
    <div class="flaghead"><h3 class="sub">Exam history</h3><span><button class="btn sm" data-go="Patients" style="margin-right:6px">Patient record</button><button class="btn sm primary" data-open="logExam" data-pid="${esc(p.id)}" ${gate('logExam')}>Log exam</button></span></div>
    ${p.e.length?`<div class="tablewrap"><table><thead><tr><th>Date</th><th>Exam</th><th class="num">Dose index</th><th class="num">Effective dose</th><th>Against DRL</th></tr></thead><tbody>
-   ${p.e.slice().reverse().map(e=>{const b=band(e.r);return `<tr data-x="${e.id}" style="cursor:pointer"><td>${dateTxt(e.t)}</td><td>${esc(e.s.name)}</td><td class="num">${e.s.label} ${fmt(e.val,e.s.dec)} ${e.s.unit}</td><td class="num">${fmt(e.eff)} mSv</td><td><span class="pill ${b.c}">${b.w} ${pct(e.r)}</span></td></tr>`}).join('')}
+   ${p.e.slice().reverse().map(e=>{const b=band(e.r,alertHit(e));return `<tr data-x="${e.id}" style="cursor:pointer"><td>${dateTxt(e.t)}</td><td>${esc(e.s.name)}</td><td class="num">${e.s.label} ${fmt(e.val,e.s.dec)} ${e.s.unit}</td><td class="num">${fmt(e.eff)} mSv</td><td><span class="pill ${b.c}">${b.w} ${pct(e.r)}</span></td></tr>`}).join('')}
    </tbody></table></div>`:'<p class="empty" style="padding-left:0">No exams logged yet.</p>'}`;
 }
 function showTip(id){
@@ -1341,7 +1346,7 @@ document.querySelectorAll('input[name=proto]').forEach(r=>r.addEventListener('ch
 /* ----- outlier scatter ----- */
 function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 const SC={chest:{key:'CT_CHEST',label:'CT chest',idx:400,ref:30,sd:5,min:18,max:44,seed:11},ap:{key:'CT_AP',label:'CT abdomen and pelvis',idx:650,ref:31,sd:5.5,min:18,max:44,seed:23},head:{key:'CT_HEAD',label:'CT head',idx:970,ref:17,sd:1.4,min:13,max:21,seed:37}};
-function realOutliers(){const c=SC[state.sc],w=win();return D.ex.filter(x=>x.key===c.key&&inWin(x,w.a,w.b)&&x.r>1.3)}
+function realOutliers(){const c=SC[state.sc],w=win();return D.ex.filter(x=>x.key===c.key&&inWin(x,w.a,w.b)&&alertHit(x))}
 function renderScatter(){
   const c=SC[state.sc], r=rng(c.seed), N=160, g=()=>Math.sqrt(-2*Math.log(1-r()))*Math.cos(2*Math.PI*r());
   const exp=d=>c.idx*Math.exp(.05*(d-c.ref)), pts=[];
@@ -1356,21 +1361,21 @@ function renderScatter(){
   ax+=`<text x="${ml+iw/2}" y="${H-5}" text-anchor="middle">Patient size, cm</text><text transform="translate(13 ${mt+ih/2}) rotate(-90)" text-anchor="middle">DLP, mGy·cm</text></g>`;
   const curve=m=>{let s='';for(let d=c.min;d<=c.max;d+=.5)s+=(s?'L':'M')+X(d).toFixed(1)+' '+Y(Math.min(ymax,exp(d)*m)).toFixed(1);return s};
   const ok=pts.filter(p=>p.q<=1.3), bad=pts.filter(p=>p.q>1.3);
-  const rOut=real.filter(p=>p.x.r>1.3).length;
+  const rOut=real.filter(p=>alertHit(p.x)).length;
   E('scatter').innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Scatter of dose length product against patient size for ${c.label}">${ax}
     <path d="${curve(1.3)}" fill="none" stroke="var(--high)" stroke-width="1.5" stroke-dasharray="6 5"/>
     <path d="${curve(1)}" fill="none" stroke="var(--ink-3)" stroke-width="1.8"/>
     ${ok.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="3.6" fill="var(--low)" fill-opacity=".3"/>`).join('')}
     ${bad.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="4.6" fill="var(--high)" fill-opacity=".35"/>`).join('')}
-    ${real.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="6.5" fill="${p.x.r>1.3?'var(--high)':'var(--low)'}" stroke="var(--ink)" stroke-width="2"><title>${esc(p.x.p.name)}, ${dateTxt(p.x.t)}, ${pct(p.x.r)} vs DRL</title></circle>`).join('')}</svg>
-    <div class="legend"><span><i class="dot low"></i>Within reference</span><span><i class="dot high"></i>More than 30% over</span><span>Ringed: logged here. Solid line: size-adjusted DRL. Dashed: +30%</span></div>`;
-  E('scNote').innerHTML=real.length?`<b>${rOut} of ${real.length} ${c.label} exams</b> logged in ${periodLabel()} ran more than 30% over the reference level. Sample baseline: ${bad.length} of ${N}.`:`No ${c.label} exams logged in ${periodLabel()}. Showing the sample baseline: ${bad.length} of ${N} ran more than 30% over.`;
+    ${real.map(p=>`<circle cx="${X(p.d).toFixed(1)}" cy="${Y(p.y).toFixed(1)}" r="6.5" fill="${alertHit(p.x)?'var(--high)':'var(--low)'}" stroke="var(--ink)" stroke-width="2"><title>${esc(p.x.p.name)}, ${dateTxt(p.x.t)}, ${pct(p.x.r)} vs DRL</title></circle>`).join('')}</svg>
+    <div class="legend"><span><i class="dot low"></i>Within reference</span><span><i class="dot high"></i>Well above the size-adjusted reference (simulated)</span><span>Ringed: logged here. Solid line: size-adjusted reference. Dashed: illustrative upper line. Background dots are simulated, not real patients.</span></div>`;
+  E('scNote').innerHTML=real.length?`<b>${rOut} of ${real.length} ${c.label} exams</b> logged in ${periodLabel()} went above the alert value${alertOf(c.key)==null?' (none set yet)':''}. Simulated baseline, not real patients: ${bad.length} of ${N}.`:`No ${c.label} exams logged in ${periodLabel()}. Showing a simulated baseline, not real patients: ${bad.length} of ${N} fall well above the size-adjusted reference.`;
 }
 E('scChips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.sc=b.dataset.p;document.querySelectorAll('#scChips .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderScatter()});
 E('sendPhys').addEventListener('click',async()=>{
   if(!can('sendPhysics'))return;
   const c=SC[state.sc], sent=new Set(D.meta.referrals.flatMap(x=>x.exams)), out=realOutliers().filter(x=>!sent.has(x.id));
-  if(!out.length){toast(realOutliers().length?'These outliers were already sent':`No logged ${c.label} exams are more than 30% over in ${periodLabel()}`);return}
+  if(!out.length){toast(realOutliers().length?'These outliers were already sent':`No logged ${c.label} exams went above the alert value in ${periodLabel()}`);return}
   D.meta.referrals.push({id:uid(),at:Date.now(),by:session.name,protocol:c.label,exams:out.map(x=>x.id),n:out.length});
   await saveMeta();toast(out.length+' outlier exam'+(out.length===1?'':'s')+' sent to the physics team');
 });
@@ -1497,12 +1502,12 @@ function renderExams(){
   const rows=D.ex.filter(x=>{
     if(state.period&&!inWin(x,w.a,w.b))return false;
     if(state.ef==='over'&&!(x.r>1))return false;
-    if(state.ef==='out'&&!(x.r>1.3))return false;
+    if(state.ef==='out'&&!alertHit(x))return false;
     if(state.emod&&x.s.mod!==state.emod)return false;
     return !q||[x.p.name,x.p.id,x.s.name].some(v=>v.toLowerCase().includes(q));
   });
   E('exCount').textContent=`${rows.length} exam${rows.length===1?'':'s'} in ${periodLabel()}. Select a row for details.`;
-  E('exBody').innerHTML=rows.length?rows.map(x=>{const b=band(x.r);return `<tr data-x="${x.id}"><td>${dateTxt(x.t)}</td><td><strong>${esc(x.p.name)}</strong><small>${esc(x.p.id)}</small></td><td>${esc(x.s.name)}</td><td class="num">${x.s.label} ${fmt(x.val,x.s.dec)} ${x.s.unit}</td><td class="num">${fmt(x.eff)} mSv</td><td><span class="pill ${b.c}">${b.w} ${pct(x.r)}</span></td><td>${esc(x.by||'')}</td></tr>`}).join(''):`<tr><td colspan="7" class="empty">${D.ex.length?'No exams match these filters.':'No exams logged yet. Use Log exam to add the first one.'}</td></tr>`;
+  E('exBody').innerHTML=rows.length?rows.map(x=>{const b=band(x.r,alertHit(x));return `<tr data-x="${x.id}"><td>${dateTxt(x.t)}</td><td><strong>${esc(x.p.name)}</strong><small>${esc(x.p.id)}</small></td><td>${esc(x.s.name)}</td><td class="num">${x.s.label} ${fmt(x.val,x.s.dec)} ${x.s.unit}</td><td class="num">${fmt(x.eff)} mSv</td><td><span class="pill ${b.c}">${b.w} ${pct(x.r)}</span></td><td>${esc(x.by||'')}</td></tr>`}).join(''):`<tr><td colspan="7" class="empty">${D.ex.length?'No exams match these filters.':'No exams logged yet. Use Log exam to add the first one.'}</td></tr>`;
 }
 E('exFilters').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;state.ef=b.dataset.f;document.querySelectorAll('#exFilters .chip').forEach(c=>c.setAttribute('aria-pressed',c===b));renderExams()});
 E('exMod').addEventListener('change',e=>{state.emod=e.target.value;renderExams()});
@@ -1557,7 +1562,7 @@ E('exForm').addEventListener('submit',async e=>{
 /* ----- exam record dialog ----- */
 function openExamView(id){
   const x=D.ex.find(e=>e.id===id); if(!x)return;
-  const b=band(x.r), f=D.flags.filter(f=>f.x===x&&isOpen(f));
+  const b=band(x.r,alertHit(x)), f=D.flags.filter(f=>f.x===x&&isOpen(f));
   E('evBody').innerHTML=`
    <div class="ph"><div><h2 id="evTitle">${esc(x.s.name)}</h2><p>${dateTxt(x.t)} for ${esc(x.p.name)} (${esc(x.p.id)})</p></div><button class="iconbtn" data-close="evDlg" aria-label="Close">&times;</button></div>
    <div class="kv">
@@ -1586,13 +1591,13 @@ function openExamView(id){
    ===================================================== */
 function renderProtocols(){
   const prof=session.profile||{}, mine=prof.mods||[], w=win();
-  E('drlNote').textContent={national:'You compare against national DRLs. Enter the values your country publishes. The starting values are illustrative.',local:'You compare against local DRLs set by your physicist. Enter your own values below. The starting values are illustrative.',none:'No reference source chosen yet. The starting values are illustrative, so replace them with published DRLs.'}[prof.drl]||'The starting values are illustrative. Replace them with published DRLs.';
+  E('drlNote').textContent='Reference levels (DRLs) are benchmarks for the typical, median dose of a group of adult patients (ICRP Publication 135). They are not dose limits and are not used to judge one exam. Alert values are different: your physicist sets one per protocol, and a single exam above it is flagged for review (NEMA XR 25, AAPM). The starting reference levels are placeholders. Replace them with your national or local DRLs.';
   const specs=Object.values(SPEC).sort((a,b)=>(mine.includes(b.mod)?1:0)-(mine.includes(a.mod)?1:0)||MODS.indexOf(a.mod)-MODS.indexOf(b.mod));
   E('drlBody').innerHTML=specs.map(s=>{
-    const ex=D.ex.filter(x=>x.key===s.key&&(!state.period||inWin(x,w.a,w.b))), med=median(ex.map(x=>x.r)), ov=ex.filter(x=>x.r>1).length, out=ex.filter(x=>x.r>1.3).length, ed=D.meta.drl[s.key]!=null;
+    const ex=D.ex.filter(x=>x.key===s.key&&(!state.period||inWin(x,w.a,w.b))), gs=groupStat(s.key,ex), med=gs.med==null?null:gs.med/drlOf(s.key), out=ex.filter(alertHit).length, ed=D.meta.drl[s.key]!=null;
     const input=can('editDRL')?`<input class="drlin" type="number" step="any" min="0" data-k="${s.key}" value="${drlOf(s.key)}" aria-label="Reference level for ${esc(s.name)}"> <small>${s.unit}</small>`:`${fmt(drlOf(s.key),s.dec)} <small>${s.unit}</small>`;
-    return `<tr><td><strong>${esc(s.name)}</strong><small>${s.label}</small></td><td>${s.mod}${mine.includes(s.mod)?'<span class="sample-tag">Yours</span>':''}</td><td class="num">${input}</td><td class="num">${fmt(s.conv,4)}</td><td class="num">${ex.length}</td><td class="num">${med==null?'\u2013':`<span class="pill ${band(med).c}">${pct(med)}</span>`}</td><td class="num">${ex.length?fmt(ov/ex.length*100,0)+'%':'\u2013'}</td><td class="num">${out?`<span class="pill high">${out}</span>`:(ex.length?'0':'\u2013')}</td><td>${ed&&can('editDRL')?`<button class="btn sm" data-reset="${s.key}">Reset</button>`:''}</td></tr>`}).join('');
-  E('drlHint').innerHTML=`Exam counts cover ${periodLabel()}. ${can('editDRL')?'Change a reference level and every exam is re-scored against it straight away.':'Only physicists, radiation safety officers and administrators can change reference levels.'} "mSv per unit" converts the dose index to effective dose and is fixed.`;
+    return `<tr><td><strong>${esc(s.name)}</strong><small>${s.label}</small></td><td>${s.mod}${mine.includes(s.mod)?'<span class="sample-tag">Yours</span>':''}</td><td class="num">${input}</td><td class="num">${fmt(s.conv,4)}</td><td class="num">${ex.length}</td><td class="num">${med==null?(ex.length?`<small>${gs.n} of ${DRL_MIN_N} adult exams needed</small>`:'\u2013'):`<span class="pill ${band(med).c}">${pct(med)}</span>`}</td><td class="num">${can('editDRL')?`<input class="alin" type="number" step="any" min="0" data-a="${s.key}" value="${alertOf(s.key)||''}" placeholder="not set" aria-label="Alert value for ${esc(s.name)}">`:(alertOf(s.key)==null?'\u2013':fmt(alertOf(s.key),s.dec))}</td><td class="num">${out?`<span class="pill high">${out}</span>`:(ex.length?'0':'\u2013')}</td><td>${ed&&can('editDRL')?`<button class="btn sm" data-reset="${s.key}">Reset</button>`:''}</td></tr>`}).join('');
+  E('drlHint').innerHTML=`Exam counts cover ${periodLabel()}. ${can('editDRL')?'Change a reference level and every exam is re-scored against it straight away.':'Only physicists, radiation safety officers and administrators can change reference levels.'} Group medians use adult patients only and need at least ${DRL_MIN_N} exams. Patient weight is not recorded yet, so this is not a strict standard-size sample. "mSv per unit" converts the dose index to effective dose and is fixed.`;
 }
 E('drlBody').addEventListener('change',async e=>{
   const i=e.target.closest('.drlin');if(!i||!can('editDRL'))return;
@@ -1600,6 +1605,13 @@ E('drlBody').addEventListener('change',async e=>{
   if(!(v>0)){toast('Enter a reference level above zero');renderProtocols();return}
   if(v===SPEC[k].idx)delete D.meta.drl[k];else D.meta.drl[k]=v;
   await saveMeta();toast('Reference level updated for '+SPEC[k].name);refresh();
+});
+E('drlBody').addEventListener('change',async e=>{
+  const i=e.target.closest('.alin');if(!i||!can('editDRL'))return;
+  const v=i.value.trim()===''?null:+i.value,k=i.dataset.a;
+  if(v!==null&&!(v>0)){toast('Enter an alert value above zero, or leave it empty');renderProtocols();return}
+  D.meta.alert=D.meta.alert||{};if(v===null)delete D.meta.alert[k];else D.meta.alert[k]=v;
+  await saveMeta();toast('Alert value updated for '+SPEC[k].name);refresh();
 });
 E('drlBody').addEventListener('click',async e=>{
   const b=e.target.closest('[data-reset]');if(!b||!can('editDRL'))return;
@@ -1633,17 +1645,17 @@ E('flagList').addEventListener('click',async e=>{
 function buildReport(type){
   const w=win(), ex=D.ex.filter(x=>!state.period||inWin(x,w.a,w.b)), pl=periodLabel();
   if(type==='summary'){
-    const over=ex.filter(x=>x.r>1).length, out=ex.filter(x=>x.r>1.3).length, fl=openFlags();
-    const rows=Object.values(SPEC).map(s=>{const a=ex.filter(x=>x.key===s.key);const m=median(a.map(x=>x.r));return a.length?[s.name,s.mod,a.length,+a.reduce((t,x)=>t+x.eff,0).toFixed(1),m==null?'':pct(m),Math.round(a.filter(x=>x.r>1).length/a.length*100)+'%']:null}).filter(Boolean);
-    return{title:'Department summary',cards:[['Exams',ex.length],['Patients seen',new Set(ex.map(x=>x.pid)).size],['Above DRL',ex.length?Math.round(over/ex.length*100)+'%':'\u2013'],['More than 30% over',out],['Open flags',fl.length],['Patients over review level',D.patients.filter(p=>p.five>=REVIEW).length]],cols:['Protocol','Modality','Exams','Total effective dose (mSv)','Median vs DRL','Above DRL'],rows,num:[2,3,4,5]};
+    const over=ex.filter(x=>x.r>1).length, out=ex.filter(alertHit).length, fl=openFlags();
+    const rows=Object.values(SPEC).map(s=>{const a=ex.filter(x=>x.key===s.key);const gs=groupStat(s.key,a), m=gs.med==null?null:gs.med/drlOf(s.key);return a.length?[s.name,s.mod,a.length,+a.reduce((t,x)=>t+x.eff,0).toFixed(1),m==null?'':pct(m),Math.round(a.filter(x=>x.r>1).length/a.length*100)+'%']:null}).filter(Boolean);
+    return{title:'Department summary',cards:[['Exams',ex.length],['Patients seen',new Set(ex.map(x=>x.pid)).size],['Above reference level (share)',ex.length?Math.round(over/ex.length*100)+'%':'\u2013'],['Above alert value',out],['Open flags',fl.length],['Patients over review level',D.patients.filter(p=>p.five>=REVIEW).length]],cols:['Protocol','Modality','Exams','Total effective dose (mSv)','Median vs DRL','Above DRL'],rows,num:[2,3,4,5]};
   }
   if(type==='cumulative'){
     const rows=D.patients.slice().sort((a,b)=>b.five-a.five).map(p=>[p.id,p.name,p.age==null?'':p.age,p.sex,+p.twelve.toFixed(1),+p.five.toFixed(1),Math.round(p.five/REVIEW*100)+'%',p.e.length]);
     return{title:'Cumulative dose by patient',cards:[['Patients',D.patients.length],['Review level',fmt(REVIEW,0)+' mSv'],['At or over review level',D.patients.filter(p=>p.five>=REVIEW).length]],cols:['Patient ID','Name','Age','Sex','12 months (mSv)','5 years (mSv)','Of review level','Exams'],rows,num:[2,4,5,6,7]};
   }
   if(type==='over'){
-    const a=ex.filter(x=>x.r>1.3);
-    return{title:'Exams more than 30% over DRL',cards:[['Exams listed',a.length],['Of all exams',ex.length?Math.round(a.length/ex.length*100)+'%':'\u2013']],cols:['Date','Patient ID','Patient','Exam','Dose index','Against DRL','Logged by'],rows:a.map(x=>[ymd(x.t),x.p.id,x.p.name,x.s.name,`${fmt(x.val,x.s.dec)} ${x.s.unit}`,pct(x.r),x.by||'']),num:[]};
+    const a=ex.filter(alertHit);
+    return{title:'Exams above alert value',cards:[['Exams listed',a.length],['Of all exams',ex.length?Math.round(a.length/ex.length*100)+'%':'\u2013']],cols:['Date','Patient ID','Patient','Exam','Dose index','Against DRL','Logged by'],rows:a.map(x=>[ymd(x.t),x.p.id,x.p.name,x.s.name,`${fmt(x.val,x.s.dec)} ${x.s.unit}`,pct(x.r),x.by||'']),num:[]};
   }
   if(type==='flags'){
     const a=openFlags().sort((x,y)=>RANK[y.sev]-RANK[x.sev]);
@@ -1662,7 +1674,7 @@ function renderReports(){
    <div class="tablewrap tall"><table><thead><tr>${r.cols.map((c,i)=>`<th class="${r.num.includes(i)?'num':''}">${c}</th>`).join('')}</tr></thead><tbody>
    ${r.rows.length?r.rows.map(row=>`<tr>${row.map((v,i)=>`<td class="${r.num.includes(i)?'num':''} ${String(v).length>60?'wrap':''}">${esc(v)}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${r.cols.length}" class="empty">Nothing to report yet.</td></tr>`}
    </tbody></table></div>
-   <div class="printhead" style="margin-top:30px"><p>Reviewed by: ______________________ &nbsp; Signature: ______________________ &nbsp; Date: ______________</p><p class="mini-note" style="margin-top:8px">Dose estimates and AI flags use illustrative rules, not clinical guidance.</p></div>`;
+   <div class="printhead" style="margin-top:30px"><p>Reviewed by: ______________________ &nbsp; Signature: ______________________ &nbsp; Date: ______________</p><p class="mini-note" style="margin-top:8px">Dose flags are rule-based decision support for review by a qualified medical physicist or radiologist. Reference levels (DRLs) are group benchmarks, not limits (ICRP 135). Alert values are set by the facility (NEMA XR 25, AAPM). Effective doses are estimates.</p></div>`;
   gateEl(E('rpCsv'),'exportReport');gateEl(E('rpXlsx'),'exportReport');
 }
 E('rpType').addEventListener('change',e=>{state.rp=e.target.value;renderReports()});
@@ -1677,7 +1689,7 @@ function reportSheet(r){
     [`Generated ${dateTxt(Date.now())} by ${session.name} (${ROLES[session.role].name})`],[]];
   r.cards.forEach(c=>a.push([c[0],c[1]]));
   a.push([]); const hr=a.length; a.push(r.cols); r.rows.forEach(x=>a.push(x));
-  a.push([],['Dose estimates and AI flags use illustrative rules, not clinical guidance.'],['Reviewed by: ____________________   Signature: ____________________   Date: ____________']);
+  a.push([],['Dose flags are rule-based decision support for review by a qualified medical physicist or radiologist. Reference levels (DRLs) are group benchmarks, not limits (ICRP 135). Alert values are set by the facility (NEMA XR 25, AAPM). Effective doses are estimates.'],['Reviewed by: ____________________   Signature: ____________________   Date: ____________']);
   const ws=XLSX.utils.aoa_to_sheet(a);
   ws['!cols']=r.cols.map((c,i)=>({wch:Math.min(60,Math.max(12,String(c).length+2,...r.rows.map(x=>String(x[i]==null?'':x[i]).length+2),i===0?Math.max(...r.cards.map(k=>String(k[0]).length+2)):0))}));
   ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:hr,c:0},e:{r:hr+r.rows.length,c:r.cols.length-1}})};
@@ -1709,7 +1721,7 @@ function renderSettings(){
     <div><span>Earlier imaging from</span><b>${LAB('prior',p.prior)}</b></div></div>
     <p class="note">Facility name, review level and your first modality are used across the app. The other answers are kept with your account.</p>`;
   E('acctLine').textContent=`${session.name}, ${session.email}, ${ROLES[session.role].name}`;
-  usersCount().then(n=>{E('dataLine').textContent=`${D.patients.length} patients, ${D.ex.length} exams and ${n} of ${MAX_USERS} accounts, saved on the server.`});
+  usersCount().then(n=>{E('dataLine').textContent=`${D.patients.length} patients, ${D.ex.length} exams and ${n} account${n===1?'':'s'}, saved on the server.`});
   E('bkNote').textContent=can('backup')?'Backups hold patient records and settings only, not accounts or passwords. Keep the file private.':'Only administrators can back up or restore data.';
   gateEl(E('bkExport'),'backup');gateEl(E('bkImportLbl'),'backup');gateEl(E('rmSample'),'deletePatient');
   E('rmSample').hidden=!n;
