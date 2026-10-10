@@ -24,8 +24,8 @@ The app starts empty. There is no sample or dummy data.
 `npm i -g vercel`, then `vercel link`, `vercel env pull .env.local`, `vercel dev`.
 
 ## Importing your own data
-Patients, Exams and Settings all have an **Import data** button. Every signed-in role can use it
-(radiographer, radiologist, physicist, radiation safety officer, administrator).
+Patients, Exams and Settings all have an **Import data** button. Radiographers, radiologists, radiation safety officers and administrators can use it
+(the same roles the server lets write patient and exam records). Medical physicists can view data but not import.
 
 1. Click **Import data** > **Download template (.xlsx)**.
 2. Fill the **Patients** sheet and the **Exams** sheet. The **Exam codes** sheet lists the exam names and the dose value each one needs.
@@ -40,7 +40,7 @@ Rules:
 - Each exam's patient must be in the same file or already in the system.
 - Up to 5,000 rows and 15 MB per file. Larger datasets: split the file.
 - Imported exams go through the same dose checks and flags as exams logged by hand.
-- If your database still holds sample patients from an earlier version, Settings shows a **Remove sample patients** button. It disappears once they are gone.
+- If your database still holds sample patients from an earlier version, they are removed automatically the next time a radiation safety officer or administrator signs in. Settings also has a **Remove sample patients** button until they are gone.
 
 ## Reports
 Reports page > pick a report > Download Excel (.xlsx), Export CSV, or Print report.

@@ -801,7 +801,7 @@ const SEVLAB={high:'High',medium:'Review',info:'Note'};
 const ROLES={
  radiographer:{name:'Radiographer',hint:'Records exams, checks patient dose and notifies the radiologist.',can:['exportReport','notify','sendPhysics','addPatient','logExam','importData']},
  radiologist:{name:'Radiologist',hint:'Reviews AI findings, then dismisses or escalates them.',can:['exportReport','notify','dismiss','sendPhysics','export','addPatient','logExam','importData']},
- physicist:{name:'Medical physicist',hint:'Analyses protocol outliers, sets reference levels and checks them against DRLs.',can:['exportReport','dismiss','export','editDRL','importData']},
+ physicist:{name:'Medical physicist',hint:'Analyses protocol outliers, sets reference levels and checks them against DRLs.',can:['exportReport','dismiss','export','editDRL']},
  rso:{name:'Radiation safety officer',hint:'Audits dose, sets review levels and receives escalations.',can:['exportReport','notify','dismiss','sendPhysics','export','editDRL','addPatient','logExam','deletePatient','importData']},
  admin:{name:'Administrator',hint:'Manages accounts, roles and backups. The first account on this system gets this role.',can:['exportReport','users','backup','export','notify','dismiss','sendPhysics','editDRL','addPatient','logExam','deletePatient','importData']}
 };
@@ -1048,11 +1048,14 @@ E('form-up').addEventListener('submit',async e=>{
 async function enter(u){
   session=u; TODAY=Date.now(); REVIEW=(u.profile&&u.profile.rev)||100;
   await loadAll();
+  let purged=0;
+  if(can('deletePatient')&&D.patients.some(p=>p.sample)){try{purged=await purgeSample(true)}catch(x){}}
   prep();
   if(!D.byId[state.sel]){const o=orderedPatients();state.sel=o.length?o[0].id:null}
   E('auth').hidden=true;E('app').hidden=false;
   renderNav();applyRole();go(state.route);
   if(!u.profile)openOnboarding(false);
+  if(purged)toast('Old sample patients removed');
 }
 async function leave(){
   session=null;api('auth',{method:'POST',body:JSON.stringify({action:'signout'})}).catch(()=>{});
@@ -1944,13 +1947,19 @@ E('pwForm').addEventListener('submit',async e=>{
   }catch(x){err.textContent=x.status?x.message:netErr}
   finally{E('goPw').disabled=false}
 });
+async function purgeSample(auto){
+  let ids=new Set(D.patients.filter(p=>p.sample).map(p=>p.id));
+  if(auto)ids=new Set([...ids].filter(id=>!D.exams.some(x=>x.pid===id&&!x.sample)));
+  const exs=D.exams.filter(x=>ids.has(x.pid));
+  for(const x of exs)await DB.del('exams',x.id);
+  for(const id of ids)await DB.del('patients',id);
+  D.exams=D.exams.filter(x=>!ids.has(x.pid));D.patients=D.patients.filter(p=>!ids.has(p.id));
+  return ids.size;
+}
 E('rmSample').addEventListener('click',async function(){
   if(!can('deletePatient'))return;
   if(!this.dataset.armed){this.dataset.armed='1';this.classList.add('armed');this.textContent='Confirm remove';setTimeout(()=>{if(this.isConnected){this.dataset.armed='';this.classList.remove('armed');this.textContent='Remove sample patients'}},3500);return}
-  const ids=new Set(D.patients.filter(p=>p.sample).map(p=>p.id));
-  for(const x of D.exams.filter(x=>ids.has(x.pid)))await DB.del('exams',x.id);
-  for(const id of ids)await DB.del('patients',id);
-  D.exams=D.exams.filter(x=>!ids.has(x.pid));D.patients=D.patients.filter(p=>!ids.has(p.id));
+  await purgeSample(false);
   this.dataset.armed='';this.classList.remove('armed');this.textContent='Remove sample patients';
   prep();if(!D.byId[state.sel]){const o=orderedPatients();state.sel=o.length?o[0].id:null}
   renderRoute();toast('Sample patients removed');
